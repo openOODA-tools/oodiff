@@ -52,3 +52,14 @@ jobs:
           make build
           make test
           make parity
+
+      - name: Verify packaging (.deb & .rpm)
+        working-directory: ${{ github.workspace }}/oodiff
+        run: |
+          sudo apt-get install -y -qq rpm
+          make package-deb
+          make package-rpm
+          ls -la dist/*.deb dist/*.rpm
+          sudo dpkg -i dist/oodiff_*_amd64.deb
+          /usr/bin/oodiff --version
+          /usr/bin/oodiff -u /dev/null README.md

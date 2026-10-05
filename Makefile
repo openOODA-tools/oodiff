@@ -194,6 +194,27 @@ parity: $(BIN)
 	diff -u .ooda-cache/exp_blk.txt .ooda-cache/act_blk.txt && echo "PASS: -B matches diff -B byte-for-byte"
 	@echo "ALL PARITY CHECKS PASSED"
 
+VERSION ?= 0.2.2
+
+package-deb: $(BIN)
+	@mkdir -p dist/deb-root/DEBIAN dist/deb-root/usr/bin
+	@sed "s/^Version:.*/Version: $(VERSION)-1/" packaging/debian/control.binary > dist/deb-root/DEBIAN/control
+	@cp $(BIN) dist/deb-root/usr/bin/oodiff
+	@chmod 0755 dist/deb-root/usr/bin/oodiff
+	@dpkg-deb --build --root-owner-group dist/deb-root dist/oodiff_$(VERSION)-1_amd64.deb
+	@rm -rf dist/deb-root
+	@echo "built dist/oodiff_$(VERSION)-1_amd64.deb"
+
+package-rpm: $(BIN)
+	@mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS ~/rpmbuild/RPMS
+	@cp $(BIN) ~/rpmbuild/SOURCES/oodiff-linux-x86_64
+	@sed "s/^Version:.*/Version: $(VERSION)/" packaging/oodiff.spec > ~/rpmbuild/SPECS/oodiff.spec
+	@rpmbuild -bb ~/rpmbuild/SPECS/oodiff.spec
+	@cp ~/rpmbuild/RPMS/x86_64/oodiff-$(VERSION)*.rpm dist/
+	@echo "built dist RPM package"
+
+package: package-deb package-rpm
+
 clean:
 	@rm -rf dist .ooda-cache
 	@echo "cleaned"

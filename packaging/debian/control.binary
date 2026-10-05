@@ -1,0 +1,10 @@
+Package: oodiff
+Version: 0.2.2-1
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: openOODA-tools <ops@openooda.org>
+Description: Capability-bounded file and directory diff engine
+ A drop-in diff replacement written in pure openOODA, featuring
+ byte-for-byte GNU diff parity, negative-trust capability security, and
+ a first-class MCP surface for agent callers.

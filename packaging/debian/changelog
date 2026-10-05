@@ -1,0 +1,5 @@
+oodiff (0.2.2-1) stable; urgency=low
+
+  * GNU diff parity, UTF-8 folding, DJB2 hashing, /dev/null support, MCP stdio server.
+
+ -- openOODA-tools <ops@openooda.org>  Mon, 05 Oct 2026 00:00:00 +0000

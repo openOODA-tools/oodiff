@@ -1,0 +1,14 @@
+Source: oodiff
+Section: utils
+Priority: optional
+Maintainer: openOODA-tools <ops@openooda.org>
+Standards-Version: 4.6.2
+Build-Depends: debhelper-compat (= 13)
+
+Package: oodiff
+Architecture: amd64
+Depends: libc6
+Description: Capability-bounded file and directory diff engine
+ A drop-in diff replacement written in pure openOODA, featuring
+ byte-for-byte GNU diff parity, negative-trust capability security, and
+ a first-class MCP surface for agent callers.
