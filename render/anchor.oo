@@ -1,0 +1,61 @@
+// # Render Subsystem Anchor - Edit Script To Diff Text
+//
+// Logline: Formats an edit script as unified, brief, or binary diff text.
+//
+// Setup: Pure string formatting over edit scripts and file telemetry.
+//
+// Beats:
+//   1. Build contiguous hunks from an EditScript.
+//   2. Render unified diffs with exact coordinate headers and trailing newline handling.
+//   3. Render directory notices and brief difference summaries.
+
+import "match/edit_op.oo";
+import "render_color.oo";
+import "hunk_builder.oo";
+import "render_unified.oo";
+
+pub fn render_diff_pair(
+    script: EditScript,
+    label_a: String,
+    label_b: String,
+    total_a: Int,
+    total_b: Int,
+    has_nl_a: Bool,
+    has_nl_b: Bool,
+    is_bin_a: Bool,
+    is_bin_b: Bool,
+    context: Int,
+    brief: Bool,
+    use_color: Bool
+) -> String {
+    if is_bin_a || is_bin_b {
+        if script.has_diff {
+            return "Binary files " + label_a + " and " + label_b + " differ\n";
+        }
+        return "";
+    }
+    if brief {
+        if script.has_diff {
+            return "Files " + label_a + " and " + label_b + " differ\n";
+        }
+        return "";
+    }
+    if !script.has_diff {
+        return "";
+    }
+    let hunks: List[Hunk] = build_hunks(script.items, context);
+    return render_unified_diff(
+        hunks,
+        label_a,
+        label_b,
+        total_a,
+        total_b,
+        has_nl_a,
+        has_nl_b,
+        use_color
+    );
+}
+
+pub fn render_only_in(dir: String, name: String) -> String {
+    return "Only in " + dir + ": " + name + "\n";
+}

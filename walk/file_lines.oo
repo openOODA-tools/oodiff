@@ -1,0 +1,125 @@
+// # File Lines Ingestion
+//
+// Logline: Reads a file into line streams while preserving trailing newline and binary status.
+//
+// Setup: Requires FsReadCap. Handles both normal files and standard input.
+//
+// Beats:
+//   1. Distinguish text from binary content via NUL byte detection.
+//   2. Preserve trailing newline discipline without dropping or injecting lines.
+//   3. Handle empty files and missing files deterministically.
+
+import "std/fs/os/fs.oo";
+
+pub type FileLines = struct {
+    path: String,
+    lines: List[String],
+    has_trailing_newline: Bool,
+    is_binary: Bool,
+    missing: Bool,
+    error_msg: String
+};
+
+fn nul_byte() -> String {
+    return bytes_to_str(bytes_push(bytes_new(), 0));
+}
+
+fn drain_stdin(fs: &FsReadCap) -> String {
+    let mut buf: String = "";
+    let mut running: Bool = true;
+    while running {
+        let r: Result[String, String] = oo_read_stdin_chunk(fs, 100);
+        if !r.is_ok() {
+            running = false;
+        } else {
+            let chunk: String = match r { Ok(s) => s, Err(_) => "" };
+            if chars_len(chunk) == 0 {
+                running = false;
+            } else {
+                buf = buf + chunk;
+            }
+        }
+    }
+    return buf;
+}
+
+pub fn file_lines_missing(path: String) -> FileLines {
+    return FileLines {
+        path: path,
+        lines: list_new(),
+        has_trailing_newline: false,
+        is_binary: false,
+        missing: true,
+        error_msg: "No such file or directory"
+    };
+}
+
+pub fn parse_lines_content(path: String, content: String) -> FileLines {
+    let clen: Int = chars_len(content);
+    if clen == 0 {
+        return FileLines {
+            path: path,
+            lines: list_new(),
+            has_trailing_newline: false,
+            is_binary: false,
+            missing: false,
+            error_msg: ""
+        };
+    }
+    if str_index_of(content, nul_byte()) >= 0 {
+        return FileLines {
+            path: path,
+            lines: list_new(),
+            has_trailing_newline: false,
+            is_binary: true,
+            missing: false,
+            error_msg: ""
+        };
+    }
+    let has_nl: Bool = char_at(content, clen - 1) == "\n";
+    let text: String = if has_nl { str_slice(content, 0, clen - 1) } else { content };
+    let raw: List[String] = str_split(text, "\n");
+    let mut out: List[String] = list_new();
+    let n: Int = list_len(raw);
+    let mut i: Int = 0;
+    while i < n {
+        let mut line: String = list_get(raw, i);
+        let llen: Int = chars_len(line);
+        if llen > 0 && char_at(line, llen - 1) == "\r" {
+            line = str_slice(line, 0, llen - 1);
+        }
+        out = list_push(out, line);
+        i = i + 1;
+    }
+    return FileLines {
+        path: path,
+        lines: out,
+        has_trailing_newline: has_nl,
+        is_binary: false,
+        missing: false,
+        error_msg: ""
+    };
+}
+
+pub fn read_file_lines(fs: &FsReadCap, path: String) -> FileLines {
+    if path == "-" {
+        let content: String = drain_stdin(fs);
+        return parse_lines_content("(standard input)", content);
+    }
+    if !fs_path_exists(fs, path) {
+        return file_lines_missing(path);
+    }
+    let r: Result[String, String] = fs_read_file(fs, path);
+    if r.is_err() {
+        return FileLines {
+            path: path,
+            lines: list_new(),
+            has_trailing_newline: false,
+            is_binary: false,
+            missing: true,
+            error_msg: "failed to read file"
+        };
+    }
+    let content: String = match r { Ok(s) => s, Err(_) => "" };
+    return parse_lines_content(path, content);
+}

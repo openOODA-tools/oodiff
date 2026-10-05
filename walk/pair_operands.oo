@@ -1,0 +1,181 @@
+// # Pair Operands
+//
+// Logline: Resolves files or directory trees into aligned comparable file pairs.
+//
+// Setup: Requires FsReadCap. Walks directories and matches relative subpaths.
+//
+// Beats:
+//   1. Pair two individual files or stdin stream directly.
+//   2. Recursively pair directory trees by relative path.
+//   3. Retain missing markers for one-sided entries.
+
+import "std/fs/os/fs.oo";
+import "file_lines.oo";
+
+pub type FilePair = struct {
+    path_a: String,
+    path_b: String,
+    label_a: String,
+    label_b: String,
+    rel_path: String,
+    file_a: FileLines,
+    file_b: FileLines,
+    only_in_a: Bool,
+    only_in_b: Bool
+};
+
+fn code_of(c: String) -> Int {
+    if chars_len(c) != 1 { return 0; }
+    return byte_at(c, 0) & 255;
+}
+
+fn compare_strings(a: String, b: String) -> Int {
+    let na: Int = chars_len(a);
+    let nb: Int = chars_len(b);
+    let m: Int = if na < nb { na } else { nb };
+    let mut i: Int = 0;
+    while i < m {
+        let d: Int = code_of(char_at(a, i)) - code_of(char_at(b, i));
+        if d != 0 { return d; }
+        i = i + 1;
+    }
+    return na - nb;
+}
+
+fn insert_sorted(xs: List[String], v: String) -> List[String] {
+    let mut res: List[String] = list_new();
+    let mut placed: Bool = false;
+    let n: Int = list_len(xs);
+    let mut i: Int = 0;
+    while i < n {
+        if !placed && compare_strings(list_get(xs, i), v) > 0 {
+            res = list_push(res, v);
+            placed = true;
+        }
+        res = list_push(res, list_get(xs, i));
+        i = i + 1;
+    }
+    if !placed {
+        res = list_push(res, v);
+    }
+    return res;
+}
+
+fn sort_strings(list: List[String]) -> List[String] {
+    let mut sorted: List[String] = list_new();
+    let n: Int = list_len(list);
+    let mut i: Int = 0;
+    while i < n {
+        sorted = insert_sorted(sorted, list_get(list, i));
+        i = i + 1;
+    }
+    return sorted;
+}
+
+fn collect_rel_files(fs: &FsReadCap, root: String, rel: String) -> List[String] {
+    let mut res_files: List[String] = list_new();
+    let full: String = if chars_len(rel) == 0 { root } else { root + "/" + rel };
+    if !fs_path_exists(fs, full) {
+        return res_files;
+    }
+    if fs_is_dir(fs, full) {
+        let entries: List[String] = fs_read_dir(fs, full);
+        let n: Int = list_len(entries);
+        let mut i: Int = 0;
+        while i < n {
+            let name: String = list_get(entries, i);
+            if name != "." && name != ".." && name != ".git" {
+                let sub_rel: String = if chars_len(rel) == 0 { name } else { rel + "/" + name };
+                let subs: List[String] = collect_rel_files(fs, root, sub_rel);
+                let sn: Int = list_len(subs);
+                let mut j: Int = 0;
+                while j < sn {
+                    res_files = list_push(res_files, list_get(subs, j));
+                    j = j + 1;
+                }
+            }
+            i = i + 1;
+        }
+    } else {
+        res_files = list_push(res_files, rel);
+    }
+    return res_files;
+}
+
+fn list_contains(list: List[String], item: String) -> Bool {
+    let n: Int = list_len(list);
+    let mut i: Int = 0;
+    while i < n {
+        if list_get(list, i) == item { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+pub fn pair_single_files(fs: &FsReadCap, path_a: String, path_b: String) -> List[FilePair] {
+    let fa: FileLines = read_file_lines(fs, path_a);
+    let fb: FileLines = read_file_lines(fs, path_b);
+    let pair: FilePair = FilePair {
+        path_a: path_a,
+        path_b: path_b,
+        label_a: path_a,
+        label_b: path_b,
+        rel_path: path_a,
+        file_a: fa,
+        file_b: fb,
+        only_in_a: false,
+        only_in_b: false
+    };
+    return list_push(list_new(), pair);
+}
+
+pub fn pair_directories(fs: &FsReadCap, dir_a: String, dir_b: String) -> List[FilePair] {
+    let files_a: List[String] = collect_rel_files(fs, dir_a, "");
+    let files_b: List[String] = collect_rel_files(fs, dir_b, "");
+
+    let mut all_rel: List[String] = list_new();
+    let na: Int = list_len(files_a);
+    let mut i: Int = 0;
+    while i < na {
+        let f: String = list_get(files_a, i);
+        all_rel = list_push(all_rel, f);
+        i = i + 1;
+    }
+    let nb: Int = list_len(files_b);
+    let mut j: Int = 0;
+    while j < nb {
+        let f: String = list_get(files_b, j);
+        if !list_contains(all_rel, f) {
+            all_rel = list_push(all_rel, f);
+        }
+        j = j + 1;
+    }
+    let sorted_rel: List[String] = sort_strings(all_rel);
+
+    let mut pairs: List[FilePair] = list_new();
+    let count: Int = list_len(sorted_rel);
+    let mut k: Int = 0;
+    while k < count {
+        let rel: String = list_get(sorted_rel, k);
+        let in_a: Bool = list_contains(files_a, rel);
+        let in_b: Bool = list_contains(files_b, rel);
+        let pa: String = dir_a + "/" + rel;
+        let pb: String = dir_b + "/" + rel;
+        let fa: FileLines = if in_a { read_file_lines(fs, pa) } else { file_lines_missing(pa) };
+        let fb: FileLines = if in_b { read_file_lines(fs, pb) } else { file_lines_missing(pb) };
+        let pair: FilePair = FilePair {
+            path_a: pa,
+            path_b: pb,
+            label_a: pa,
+            label_b: pb,
+            rel_path: rel,
+            file_a: fa,
+            file_b: fb,
+            only_in_a: in_a && !in_b,
+            only_in_b: !in_a && in_b
+        };
+        pairs = list_push(pairs, pair);
+        k = k + 1;
+    }
+    return pairs;
+}

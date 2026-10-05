@@ -1,0 +1,37 @@
+// # Edit Script Operations
+//
+// Logline: Data structures representing line diff operations and full edit scripts.
+//
+// Setup: Pure value types representing equality, deletions, and insertions.
+//
+// Beats:
+//   1. Define numeric operation codes for equal, delete, and insert runs.
+//   2. Define EditItem tracking line numbers across both operands.
+//   3. Define EditScript with overall difference status.
+
+pub fn op_equal() -> Int { return 0; }
+pub fn op_delete() -> Int { return 1; }
+pub fn op_insert() -> Int { return 2; }
+
+pub type EditItem = struct {
+    op: Int,
+    text: String,
+    line_a: Int,
+    line_b: Int
+};
+
+pub type EditScript = struct {
+    items: List[EditItem],
+    has_diff: Bool,
+    a_count: Int,
+    b_count: Int
+};
+
+pub fn empty_script() -> EditScript {
+    return EditScript {
+        items: list_new(),
+        has_diff: false,
+        a_count: 0,
+        b_count: 0
+    };
+}

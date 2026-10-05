@@ -1,0 +1,129 @@
+// # MCP Stdio Server - Agent Diff Engine
+//
+// Logline: Speaks Model Context Protocol over stdio for LLM coding agents.
+//
+// Setup: Requires FsReadCap. Dispatches diff tool calls and lists capabilities.
+//
+// Beats:
+//   1. Handle initialize and notifications/initialized lifecycle handshakes.
+//   2. Advertise diff_files and diff_dirs tools with JSON Schema parameter definitions.
+//   3. Dispatch tools/call requests and return unified diff results in content envelopes.
+
+import "walk/anchor.oo";
+import "walk/file_lines.oo";
+import "walk/pair_operands.oo";
+import "match/anchor.oo";
+import "match/edit_op.oo";
+import "render/anchor.oo";
+import "json_field.oo";
+
+fn build_error(id: String, code: Int, msg: String) -> String {
+    return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"error\":{\"code\":" + to_string(code) + ",\"message\":\"" + json_escape(msg) + "\"}}";
+}
+
+fn build_tool_result(id: String, text: String) -> String {
+    return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape(text) + "\"}]}}";
+}
+
+fn handle_tool_call(fs: &FsReadCap, id: String, req: String) -> String {
+    let params: String = json_field_raw(req, "params");
+    let tool_name: String = json_field_string(params, "name");
+    let args: String = json_field_raw(params, "arguments");
+
+    if tool_name == "diff_files" {
+        let pa: String = json_field_string(args, "path_a");
+        let pb: String = json_field_string(args, "path_b");
+        if chars_len(pa) == 0 || chars_len(pb) == 0 {
+            return build_error(id, -32602, "missing path_a or path_b");
+        }
+        let fa: FileLines = walk_read_file(fs, pa);
+        let fb: FileLines = walk_read_file(fs, pb);
+        if fa.missing { return build_error(id, -32602, pa + ": " + fa.error_msg); }
+        if fb.missing { return build_error(id, -32602, pb + ": " + fb.error_msg); }
+        let script: EditScript = match_compute_script(fa.lines, fb.lines, fa.has_trailing_newline, fb.has_trailing_newline);
+        let text: String = render_diff_pair(script, pa, pb, list_len(fa.lines), list_len(fb.lines), fa.has_trailing_newline, fb.has_trailing_newline, fa.is_binary, fb.is_binary, 3, false, false);
+        return build_tool_result(id, text);
+    }
+
+    if tool_name == "diff_dirs" {
+        let da: String = json_field_string(args, "dir_a");
+        let db: String = json_field_string(args, "dir_b");
+        if chars_len(da) == 0 || chars_len(db) == 0 {
+            return build_error(id, -32602, "missing dir_a or dir_b");
+        }
+        let pairs: List[FilePair] = walk_pair_operands(fs, da, db, true);
+        let mut full_diff: String = "";
+        let n: Int = list_len(pairs);
+        let mut i: Int = 0;
+        while i < n {
+            let p: FilePair = list_get(pairs, i);
+            if p.only_in_a {
+                full_diff = full_diff + render_only_in(da, p.rel_path);
+            } else if p.only_in_b {
+                full_diff = full_diff + render_only_in(db, p.rel_path);
+            } else {
+                let script: EditScript = match_compute_script(p.file_a.lines, p.file_b.lines, p.file_a.has_trailing_newline, p.file_b.has_trailing_newline);
+                full_diff = full_diff + render_diff_pair(script, p.label_a, p.label_b, list_len(p.file_a.lines), list_len(p.file_b.lines), p.file_a.has_trailing_newline, p.file_b.has_trailing_newline, p.file_a.is_binary, p.file_b.is_binary, 3, false, false);
+            }
+            i = i + 1;
+        }
+        return build_tool_result(id, full_diff);
+    }
+
+    return build_error(id, -32601, "unknown tool: " + tool_name);
+}
+
+fn handle_mcp_request(fs: &FsReadCap, req: String) -> String {
+    let method: String = json_field_string(req, "method");
+    let raw_id: String = json_field_raw(req, "id");
+    let id: String = if chars_len(raw_id) == 0 { "null" } else { raw_id };
+
+    if method == "initialize" {
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"oodiff\",\"version\":\"0.1.0\"}}}";
+    }
+    if method == "notifications/initialized" {
+        return "";
+    }
+    if method == "tools/list" {
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"tools\":[{\"name\":\"diff_files\",\"description\":\"Compare two files and return unified diff\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path_a\":{\"type\":\"string\"},\"path_b\":{\"type\":\"string\"}},\"required\":[\"path_a\",\"path_b\"]}},{\"name\":\"diff_dirs\",\"description\":\"Compare two directories recursively and return unified diff\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"dir_a\":{\"type\":\"string\"},\"dir_b\":{\"type\":\"string\"}},\"required\":[\"dir_a\",\"dir_b\"]}}]}}";
+    }
+    if method == "tools/call" {
+        return handle_tool_call(fs, id, req);
+    }
+    if method == "shutdown" {
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":null}";
+    }
+    return build_error(id, -32601, "method not found: " + method);
+}
+
+pub fn run_mcp_server(fs: &FsReadCap) -> Int {
+    let mut buf: String = "";
+    let mut running: Bool = true;
+    while running {
+        let r: Result[String, String] = oo_read_stdin_chunk(fs, 100);
+        if !r.is_ok() {
+            running = false;
+        } else {
+            let chunk: String = match r { Ok(s) => s, Err(_) => "" };
+            if chars_len(chunk) == 0 {
+                running = false;
+            } else {
+                buf = buf + chunk;
+                let mut nl_pos: Int = str_index_of(buf, "\n");
+                while nl_pos >= 0 {
+                    let line: String = str_slice(buf, 0, nl_pos);
+                    buf = str_slice(buf, nl_pos + 1, chars_len(buf));
+                    let trimmed: String = str_trim(line);
+                    if chars_len(trimmed) > 0 {
+                        let reply: String = handle_mcp_request(fs, trimmed);
+                        if chars_len(reply) > 0 {
+                            println(reply);
+                        }
+                    }
+                    nl_pos = str_index_of(buf, "\n");
+                }
+            }
+        }
+    }
+    return 0;
+}

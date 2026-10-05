@@ -1,0 +1,28 @@
+// # Tier 1: Core Feature Assertions
+// File: oodiff/qa/tier1_features.oot
+//
+// Status: ACTIVE. Executed by `make test` against the built binary.
+//
+// Scope: Core behavior coverage for exit codes, unified format, directory walk, and MCP.
+//
+// Beats:
+//   1. Verify exit code contract: 0 identical, 1 differences, 2 trouble.
+//   2. Verify unified diff format and newline diagnostics.
+//   3. Verify MCP JSON-RPC protocol execution over stdio.
+
+| ID | Invocation | Expectation |
+| --- | --- | --- |
+| T1-01 | `oodiff --help` | prints usage, exit 0 |
+| T1-02 | `oodiff --version` | prints version banner, exit 0 |
+| T1-03 | `oodiff` | missing operands, exit 2 |
+| T1-04 | `oodiff file1 file2 file3` | extra operands, exit 2 |
+| T1-05 | `oodiff file1 nonexistent` | missing file reported, exit 2 |
+| T1-06 | `oodiff same same` | identical files, exit 0, no output |
+| T1-07 | `oodiff file_a file_b` | differences reported in unified format, exit 1 |
+| T1-08 | `oodiff -q file_a file_b` | brief output "Files ... differ", exit 1 |
+| T1-09 | `oodiff no_nl with_nl` | emits "\ No newline at end of file", exit 1 |
+| T1-10 | `oodiff -r dir_a dir_b` | recursive walk with "Only in" notices, exit 1 |
+| T1-11 | `printf ... \| oodiff file -` | stdin operand comparison, exit 1 |
+| T1-12 | `oodiff --mcp` (initialize) | returns protocolVersion and serverInfo |
+| T1-13 | `oodiff --mcp` (tools/list) | returns diff_files and diff_dirs tool descriptors |
+| T1-14 | `oodiff --mcp` (tools/call) | returns unified diff in JSON content block |

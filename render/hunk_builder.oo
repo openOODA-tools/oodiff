@@ -1,0 +1,103 @@
+// # Unified Diff Hunk Builder
+//
+// Logline: Groups granular edit operations into unified diff hunks with context padding.
+//
+// Setup: Pure algorithm transforming an EditScript into a list of Hunks.
+//
+// Beats:
+//   1. Identify clusters of additions and deletions separated by context thresholds.
+//   2. Calculate accurate hunk boundary coordinates for both file operands.
+//   3. Merge adjacent hunks when intervening unchanged lines fall within context limits.
+
+import "match/edit_op.oo";
+
+pub type Hunk = struct {
+    start_a: Int,
+    count_a: Int,
+    start_b: Int,
+    count_b: Int,
+    items: List[EditItem]
+};
+
+fn find_mod_indices(items: List[EditItem]) -> List[Int] {
+    let mut indices: List[Int] = list_new();
+    let n: Int = list_len(items);
+    let mut i: Int = 0;
+    while i < n {
+        let it: EditItem = list_get(items, i);
+        if it.op != op_equal() {
+            indices = list_push(indices, i);
+        }
+        i = i + 1;
+    }
+    return indices;
+}
+
+pub fn build_hunks(items: List[EditItem], context: Int) -> List[Hunk] {
+    let mut hunk_list: List[Hunk] = list_new();
+    let mod_indices: List[Int] = find_mod_indices(items);
+    let n_mods: Int = list_len(mod_indices);
+    if n_mods == 0 {
+        return hunk_list;
+    }
+
+    let total: Int = list_len(items);
+    let mut cur_mod: Int = 0;
+
+    while cur_mod < n_mods {
+        let first_idx: Int = list_get(mod_indices, cur_mod);
+        let mut last_idx: Int = first_idx;
+
+        let mut next_mod: Int = cur_mod + 1;
+        let mut scanning: Bool = true;
+        while next_mod < n_mods && scanning {
+            let next_idx: Int = list_get(mod_indices, next_mod);
+            if next_idx - last_idx <= 2 * context {
+                last_idx = next_idx;
+                next_mod = next_mod + 1;
+            } else {
+                scanning = false;
+            }
+        }
+
+        let slice_start: Int = if first_idx > context { first_idx - context } else { 0 };
+        let slice_end: Int = if (last_idx + context) < (total - 1) { last_idx + context } else { total - 1 };
+
+        let mut hunk_items: List[EditItem] = list_new();
+        let mut count_a: Int = 0;
+        let mut count_b: Int = 0;
+        let mut start_a: Int = 0;
+        let mut start_b: Int = 0;
+
+        let mut si: Int = slice_start;
+        while si <= slice_end {
+            let it: EditItem = list_get(items, si);
+            hunk_items = list_push(hunk_items, it);
+            if it.op == op_equal() || it.op == op_delete() {
+                if start_a == 0 && it.line_a > 0 {
+                    start_a = it.line_a;
+                }
+                count_a = count_a + 1;
+            }
+            if it.op == op_equal() || it.op == op_insert() {
+                if start_b == 0 && it.line_b > 0 {
+                    start_b = it.line_b;
+                }
+                count_b = count_b + 1;
+            }
+            si = si + 1;
+        }
+
+        let h: Hunk = Hunk {
+            start_a: start_a,
+            count_a: count_a,
+            start_b: start_b,
+            count_b: count_b,
+            items: hunk_items
+        };
+        hunk_list = list_push(hunk_list, h);
+        cur_mod = next_mod;
+    }
+
+    return hunk_list;
+}

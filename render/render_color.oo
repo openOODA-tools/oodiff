@@ -1,0 +1,38 @@
+// # Terminal Color Formatting
+//
+// Logline: Generates ANSI escape sequences for unified diff syntax highlighting.
+//
+// Setup: Pure string formatting using explicit byte construction for ESC characters.
+//
+// Beats:
+//   1. Build ESC byte safely avoiding string literal compile traps.
+//   2. Colorize file headers, hunk range markers, additions, and deletions.
+//   3. Provide clean pass-through when color is disabled.
+
+fn esc_prefix() -> String {
+    return bytes_to_str(bytes_push(bytes_new(), 27)) + "[";
+}
+
+pub fn color_reset() -> String {
+    return esc_prefix() + "0m";
+}
+
+pub fn color_bold(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    return esc_prefix() + "1m" + text + color_reset();
+}
+
+pub fn color_red(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    return esc_prefix() + "31m" + text + color_reset();
+}
+
+pub fn color_green(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    return esc_prefix() + "32m" + text + color_reset();
+}
+
+pub fn color_cyan(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    return esc_prefix() + "36m" + text + color_reset();
+}

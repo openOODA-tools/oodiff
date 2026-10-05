@@ -1,0 +1,131 @@
+// # Diff CLI Options Parser
+//
+// Logline: Parses command-line arguments into structured diff execution policies.
+//
+// Setup: Pure argument scanning without filesystem access.
+//
+// Beats:
+//   1. Parse standard flags (-u, -r, -q, -i, -w, --mcp, --color, --no-color).
+//   2. Extract positional file or directory operands.
+//   3. Enforce operand presence rules and reject malformed invocations.
+
+pub type DiffOpts = struct {
+    context: Int,
+    recursive: Bool,
+    brief: Bool,
+    ignore_case: Bool,
+    ignore_all_space: Bool,
+    use_color: Bool,
+    mcp_mode: Bool,
+    help_mode: Bool,
+    version_mode: Bool,
+    operands: List[String],
+    error_msg: String
+};
+
+fn parse_digit(c: String) -> Int {
+    if c == "0" { return 0; }
+    if c == "1" { return 1; }
+    if c == "2" { return 2; }
+    if c == "3" { return 3; }
+    if c == "4" { return 4; }
+    if c == "5" { return 5; }
+    if c == "6" { return 6; }
+    if c == "7" { return 7; }
+    if c == "8" { return 8; }
+    if c == "9" { return 9; }
+    return -1;
+}
+
+fn parse_uint(s: String, fallback: Int) -> Int {
+    let n: Int = chars_len(s);
+    if n == 0 { return fallback; }
+    let mut acc: Int = 0;
+    let mut i: Int = 0;
+    while i < n {
+        let d: Int = parse_digit(char_at(s, i));
+        if d < 0 { return fallback; }
+        acc = acc * 10 + d;
+        i = i + 1;
+    }
+    return acc;
+}
+
+pub fn parse_diff_args(args: List[String]) -> DiffOpts {
+    let mut ctx: Int = 3;
+    let mut rec: Bool = false;
+    let mut brief: Bool = false;
+    let mut icase: Bool = false;
+    let mut ispace: Bool = false;
+    let mut color: Bool = true;
+    let mut mcp: Bool = false;
+    let mut help: Bool = false;
+    let mut ver: Bool = false;
+    let mut ops: List[String] = list_new();
+    let mut err: String = "";
+
+    let n: Int = list_len(args);
+    let mut i: Int = 0;
+    while i < n {
+        let a: String = list_get(args, i);
+        if a == "-h" || a == "--help" {
+            help = true;
+        } else if a == "-V" || a == "-v" || a == "--version" {
+            ver = true;
+        } else if a == "--mcp" {
+            mcp = true;
+        } else if a == "-u" || a == "--unified" {
+            // default unified context is 3
+        } else if a == "-r" || a == "--recursive" {
+            rec = true;
+        } else if a == "-q" || a == "--brief" {
+            brief = true;
+        } else if a == "-i" || a == "--ignore-case" {
+            icase = true;
+        } else if a == "-w" || a == "--ignore-all-space" {
+            ispace = true;
+        } else if a == "--no-color" {
+            color = false;
+        } else if a == "--color" {
+            color = true;
+        } else if a == "-U" {
+            if i + 1 < n {
+                ctx = parse_uint(list_get(args, i + 1), 3);
+                i = i + 1;
+            } else {
+                err = "option requires an argument -- 'U'";
+            }
+        } else if str_starts_with(a, "-U") {
+            let num_str: String = str_slice(a, 2, chars_len(a));
+            ctx = parse_uint(num_str, 3);
+        } else if str_starts_with(a, "-") && a != "-" {
+            err = "unrecognized option '" + a + "'";
+        } else {
+            ops = list_push(ops, a);
+        }
+        i = i + 1;
+    }
+
+    if !help && !ver && !mcp && chars_len(err) == 0 {
+        let op_count: Int = list_len(ops);
+        if op_count < 2 {
+            err = "missing operand";
+        } else if op_count > 2 {
+            err = "extra operand '" + list_get(ops, 2) + "'";
+        }
+    }
+
+    return DiffOpts {
+        context: ctx,
+        recursive: rec,
+        brief: brief,
+        ignore_case: icase,
+        ignore_all_space: ispace,
+        use_color: color,
+        mcp_mode: mcp,
+        help_mode: help,
+        version_mode: ver,
+        operands: ops,
+        error_msg: err
+    };
+}

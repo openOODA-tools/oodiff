@@ -1,0 +1,80 @@
+// # Unified Diff Text Renderer
+//
+// Logline: Formats hunk structures into standardized unified diff syntax.
+//
+// Setup: Pure text rendering. Handles trailing newline markers and ANSI colorization.
+//
+// Beats:
+//   1. Render unified file header banners with timestamps or path labels.
+//   2. Render @@ hunk range headers with accurate coordinate formatting.
+//   3. Render prefixed line records and trailing newline diagnostics.
+
+import "match/edit_op.oo";
+import "hunk_builder.oo";
+import "render_color.oo";
+
+fn format_coord(prefix: String, start: Int, count: Int) -> String {
+    if count == 0 {
+        return prefix + "0,0";
+    }
+    if count == 1 {
+        return prefix + to_string(start);
+    }
+    return prefix + to_string(start) + "," + to_string(count);
+}
+
+pub fn render_unified_diff(
+    hunks: List[Hunk],
+    label_a: String,
+    label_b: String,
+    total_a: Int,
+    total_b: Int,
+    has_nl_a: Bool,
+    has_nl_b: Bool,
+    use_color: Bool
+) -> String {
+    let n_hunks: Int = list_len(hunks);
+    if n_hunks == 0 {
+        return "";
+    }
+
+    let mut out: String = "";
+    let hdr_a: String = "--- " + label_a + "\n";
+    let hdr_b: String = "+++ " + label_b + "\n";
+    out = out + color_bold(hdr_a, use_color);
+    out = out + color_bold(hdr_b, use_color);
+
+    let mut hi: Int = 0;
+    while hi < n_hunks {
+        let h: Hunk = list_get(hunks, hi);
+        let coord: String = "@@ " + format_coord("-", h.start_a, h.count_a) + " " + format_coord("+", h.start_b, h.count_b) + " @@\n";
+        out = out + color_cyan(coord, use_color);
+
+        let n_items: Int = list_len(h.items);
+        let mut ii: Int = 0;
+        while ii < n_items {
+            let it: EditItem = list_get(h.items, ii);
+            if it.op == op_equal() {
+                out = out + " " + it.text + "\n";
+                if it.line_a == total_a && !has_nl_a && it.line_b == total_b && !has_nl_b {
+                    out = out + "\\ No newline at end of file\n";
+                }
+            } else if it.op == op_delete() {
+                let del_line: String = "-" + it.text + "\n";
+                out = out + color_red(del_line, use_color);
+                if it.line_a == total_a && !has_nl_a {
+                    out = out + "\\ No newline at end of file\n";
+                }
+            } else if it.op == op_insert() {
+                let ins_line: String = "+" + it.text + "\n";
+                out = out + color_green(ins_line, use_color);
+                if it.line_b == total_b && !has_nl_b {
+                    out = out + "\\ No newline at end of file\n";
+                }
+            }
+            ii = ii + 1;
+        }
+        hi = hi + 1;
+    }
+    return out;
+}

@@ -1,0 +1,218 @@
+// # Myers Difference Algorithm
+//
+// Logline: Computes shortest edit script between two string lists using Myers algorithm.
+//
+// Setup: Pure comparison engine over lines. Bounded search budget prevents adversarial hangs.
+//
+// Beats:
+//   1. Search optimal diagonal path minimizing edit distance.
+//   2. Backtrack historical V-states to extract exact equal, delete, and insert runs.
+//   3. Fall back to replace-all edit runs when budget ceiling is exceeded.
+
+import "edit_op.oo";
+
+pub type MyersResult = struct {
+    items: List[EditItem],
+    success: Bool
+};
+
+fn make_v_array(size: Int, init_val: Int) -> List[Int] {
+    let mut arr: List[Int] = list_new();
+    let mut i: Int = 0;
+    while i < size {
+        arr = list_push(arr, init_val);
+        i = i + 1;
+    }
+    return arr;
+}
+
+fn fallback_diff(a: List[String], b: List[String], base_a: Int, base_b: Int) -> List[EditItem] {
+    let mut items: List[EditItem] = list_new();
+    let na: Int = list_len(a);
+    let nb: Int = list_len(b);
+    let mut i: Int = 0;
+    while i < na {
+        let item: EditItem = EditItem {
+            op: op_delete(),
+            text: list_get(a, i),
+            line_a: base_a + i + 1,
+            line_b: 0
+        };
+        items = list_push(items, item);
+        i = i + 1;
+    }
+    let mut j: Int = 0;
+    while j < nb {
+        let item: EditItem = EditItem {
+            op: op_insert(),
+            text: list_get(b, j),
+            line_a: 0,
+            line_b: base_b + j + 1
+        };
+        items = list_push(items, item);
+        j = j + 1;
+    }
+    return items;
+}
+
+fn copy_list(src: List[Int]) -> List[Int] {
+    let mut cpy: List[Int] = list_new();
+    let n: Int = list_len(src);
+    let mut i: Int = 0;
+    while i < n {
+        cpy = list_push(cpy, list_get(src, i));
+        i = i + 1;
+    }
+    return cpy;
+}
+
+pub fn solve_myers(a: List[String], b: List[String], base_a: Int, base_b: Int) -> List[EditItem] {
+    let na: Int = list_len(a);
+    let nb: Int = list_len(b);
+    if na == 0 && nb == 0 { return list_new(); }
+    if na == 0 || nb == 0 { return fallback_diff(a, b, base_a, base_b); }
+
+    let max_d: Int = na + nb;
+    let budget: Int = if max_d > 600 { 600 } else { max_d };
+    let v_size: Int = 2 * max_d + 1;
+    let offset: Int = max_d;
+
+    let mut v: List[Int] = make_v_array(v_size, 0);
+    let mut history: List[List[Int]] = list_new();
+
+    // Check initial snake at (0, 0)
+    let mut init_x: Int = 0;
+    while init_x < na && init_x < nb && list_get(a, init_x) == list_get(b, init_x) {
+        init_x = init_x + 1;
+    }
+    v = list_set(v, offset, init_x);
+    history = list_push(history, v);
+
+    if init_x >= na && init_x >= nb {
+        let mut same_items: List[EditItem] = list_new();
+        let mut k: Int = 0;
+        while k < na {
+            let eq_item: EditItem = EditItem {
+                op: op_equal(),
+                text: list_get(a, k),
+                line_a: base_a + k + 1,
+                line_b: base_b + k + 1
+            };
+            same_items = list_push(same_items, eq_item);
+            k = k + 1;
+        }
+        return same_items;
+    }
+
+    let mut final_d: Int = 0;
+    let mut reached: Bool = false;
+    let mut d: Int = 1;
+    while d <= budget && !reached {
+        let prev_v: List[Int] = list_get(history, d - 1);
+        let mut curr_v: List[Int] = copy_list(prev_v);
+        let mut k_val: Int = 0 - d;
+        while k_val <= d && !reached {
+            let k_idx: Int = k_val + offset;
+            let mut x: Int = 0;
+            if k_val == 0 - d || (k_val != d && list_get(prev_v, k_idx - 1) < list_get(prev_v, k_idx + 1)) {
+                x = list_get(prev_v, k_idx + 1);
+            } else {
+                x = list_get(prev_v, k_idx - 1) + 1;
+            }
+            let mut y: Int = x - k_val;
+            while x < na && y < nb && list_get(a, x) == list_get(b, y) {
+                x = x + 1;
+                y = y + 1;
+            }
+            curr_v = list_set(curr_v, k_idx, x);
+            if x >= na && y >= nb {
+                reached = true;
+                final_d = d;
+            }
+            k_val = k_val + 2;
+        }
+        history = list_push(history, curr_v);
+        d = d + 1;
+    }
+
+    if !reached {
+        return fallback_diff(a, b, base_a, base_b);
+    }
+
+    // Backtrack from (na, nb) down to (0, 0)
+    let mut rev_items: List[EditItem] = list_new();
+    let mut cur_x: Int = na;
+    let mut cur_y: Int = nb;
+    let mut step_d: Int = final_d;
+
+    while step_d > 0 {
+        let hist_prev: List[Int] = list_get(history, step_d - 1);
+        let cur_k: Int = cur_x - cur_y;
+        let k_idx: Int = cur_k + offset;
+        let prev_k: Int = if cur_k == (0 - step_d) || (cur_k != step_d && list_get(hist_prev, k_idx - 1) < list_get(hist_prev, k_idx + 1)) {
+            cur_k + 1
+        } else {
+            cur_k - 1
+        };
+        let prev_x: Int = list_get(hist_prev, prev_k + offset);
+        let prev_y: Int = prev_x - prev_k;
+
+        // Equal snake lines
+        while cur_x > prev_x && cur_y > prev_y && cur_x > 0 && cur_y > 0 && list_get(a, cur_x - 1) == list_get(b, cur_y - 1) {
+            let eq_it: EditItem = EditItem {
+                op: op_equal(),
+                text: list_get(a, cur_x - 1),
+                line_a: base_a + cur_x,
+                line_b: base_b + cur_y
+            };
+            rev_items = list_push(rev_items, eq_it);
+            cur_x = cur_x - 1;
+            cur_y = cur_y - 1;
+        }
+
+        // Single step: deletion or insertion
+        if cur_x > prev_x {
+            let del_it: EditItem = EditItem {
+                op: op_delete(),
+                text: list_get(a, cur_x - 1),
+                line_a: base_a + cur_x,
+                line_b: 0
+            };
+            rev_items = list_push(rev_items, del_it);
+            cur_x = cur_x - 1;
+        } else if cur_y > prev_y {
+            let ins_it: EditItem = EditItem {
+                op: op_insert(),
+                text: list_get(b, cur_y - 1),
+                line_a: 0,
+                line_b: base_b + cur_y
+            };
+            rev_items = list_push(rev_items, ins_it);
+            cur_y = cur_y - 1;
+        }
+        step_d = step_d - 1;
+    }
+
+    // Any remaining equal snake from (0, 0)
+    while cur_x > 0 && cur_y > 0 && list_get(a, cur_x - 1) == list_get(b, cur_y - 1) {
+        let eq_zero: EditItem = EditItem {
+            op: op_equal(),
+            text: list_get(a, cur_x - 1),
+            line_a: base_a + cur_x,
+            line_b: base_b + cur_y
+        };
+        rev_items = list_push(rev_items, eq_zero);
+        cur_x = cur_x - 1;
+        cur_y = cur_y - 1;
+    }
+
+    // Reverse rev_items to forward order
+    let mut forward: List[EditItem] = list_new();
+    let n_rev: Int = list_len(rev_items);
+    let mut ri: Int = 0;
+    while ri < n_rev {
+        forward = list_push(forward, list_get(rev_items, n_rev - 1 - ri));
+        ri = ri + 1;
+    }
+    return forward;
+}
