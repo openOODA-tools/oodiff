@@ -55,12 +55,12 @@ file-law:
 	@forbidden="py js ts rb pl json yaml toml"; \
 	violations=0; \
 	for ext in $$forbidden; do \
-		found=$$(find . -name "*.$$ext" -not -path "./.git/*" -not -path "./dist/*" -not -path "./.ooda-cache/*" -not -path "./.blackbox/*" 2>/dev/null | head -3); \
+		found=$$(find . -name "*.$$ext" -not -path "./.git/*" -not -path "./.github/*" -not -path "./dist/*" -not -path "./.ooda-cache/*" -not -path "./.blackbox/*" 2>/dev/null | head -3); \
 		if [ -n "$$found" ]; then \
 			echo "VIOLATION: .$$ext forbidden:"; echo "$$found"; violations=$$((violations+1)); \
 		fi; \
 	done; \
-	for f in $$(find . -name "*.md" -not -path "./.git/*" -not -path "./.ooda-cache/*" -not -path "./.blackbox/*" 2>/dev/null); do \
+	for f in $$(find . -name "*.md" -not -path "./.git/*" -not -path "./.github/*" -not -path "./.ooda-cache/*" -not -path "./.blackbox/*" 2>/dev/null); do \
 		if [ "$$f" != "./README.md" ] && [ "$$f" != "./AGENTS.md" ]; then \
 			echo "VIOLATION: .md forbidden outside README.md and AGENTS.md: $$f"; violations=$$((violations+1)); \
 		fi; \
@@ -149,6 +149,11 @@ test: $(BIN)
 	@printf '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}\n' | ./$(BIN) --mcp | grep -q "diff_files" && echo "PASS: MCP tools/list"
 	@echo "=== testing MCP stdio tools/call ==="
 	@printf '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"diff_files","arguments":{"path_a":"qa/fixtures/test_a.txt","path_b":"qa/fixtures/test_b.txt"}}}\n' | ./$(BIN) --mcp | grep -q "content" && echo "PASS: MCP tools/call"
+	@echo "=== testing /dev/null creation ==="
+	@./$(BIN) -u /dev/null qa/fixtures/test_a.txt | grep -q -- "@@ -0,0 +1,3 @@" && echo "PASS: /dev/null creation diff"
+	@echo "=== testing symlink cycle defense ==="
+	@mkdir -p .ooda-cache/sym_test && ln -sf . .ooda-cache/sym_test/loop 2>/dev/null || true; \
+	./$(BIN) -r .ooda-cache/sym_test qa/fixtures/dir_b | grep -q "Only in .ooda-cache/sym_test: loop" && echo "PASS: symlink cycle pruned"
 	@echo "=== testing double-run determinism ==="
 	@./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt > .ooda-cache/run1.txt 2>&1 || true; \
 	./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt > .ooda-cache/run2.txt 2>&1 || true; \
@@ -164,6 +169,10 @@ parity: $(BIN)
 	@diff -u qa/fixtures/test_a.txt qa/fixtures/test_b.txt | tail -n +3 > .ooda-cache/diff_expected.txt || true; \
 	./$(BIN) -u --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | tail -n +3 > .ooda-cache/diff_actual.txt || true; \
 	diff -u .ooda-cache/diff_expected.txt .ooda-cache/diff_actual.txt && echo "PASS: hunks match diff -u byte-for-byte"
+	@echo "=== verifying /dev/null parity ==="
+	@diff -u /dev/null qa/fixtures/test_a.txt | tail -n +3 > .ooda-cache/exp_null.txt || true; \
+	./$(BIN) -u /dev/null qa/fixtures/test_a.txt | tail -n +3 > .ooda-cache/act_null.txt || true; \
+	diff -u .ooda-cache/exp_null.txt .ooda-cache/act_null.txt && echo "PASS: /dev/null matches diff -u byte-for-byte"
 	@echo "=== verifying recursive directory parity ==="
 	@diff -r qa/fixtures/dir_a qa/fixtures/dir_b > .ooda-cache/exp_rec.txt || true; \
 	./$(BIN) --no-color -r qa/fixtures/dir_a qa/fixtures/dir_b > .ooda-cache/act_rec.txt || true; \

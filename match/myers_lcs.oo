@@ -80,7 +80,7 @@ pub fn solve_myers(
     if na == 0 || nb == 0 { return fallback_diff(a, b, base_a, base_b); }
 
     let max_d: Int = na + nb;
-    let budget: Int = if max_d > 600 { 600 } else { max_d };
+    let budget: Int = if max_d > 2000 { 2000 } else { max_d };
     let v_size: Int = 2 * max_d + 1;
     let offset: Int = max_d;
 

@@ -72,8 +72,22 @@ fn sort_strings(list: List[String]) -> List[String] {
     return sorted;
 }
 
-fn collect_rel_files(fs: &FsReadCap, root: String, rel: String) -> List[String] {
+fn path_has_segment(path: String, seg: String) -> Bool {
+    let segs: List[String] = str_split(path, "/");
+    let n: Int = list_len(segs);
+    let mut i: Int = 0;
+    while i < n {
+        if list_get(segs, i) == seg { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn collect_rel_files(fs: &FsReadCap, root: String, rel: String, depth: Int) -> List[String] {
     let mut res_files: List[String] = list_new();
+    if depth > 32 {
+        return res_files;
+    }
     let full: String = if chars_len(rel) == 0 { root } else { root + "/" + rel };
     if !fs_path_exists(fs, full) {
         return res_files;
@@ -85,13 +99,19 @@ fn collect_rel_files(fs: &FsReadCap, root: String, rel: String) -> List[String] 
         while i < n {
             let name: String = list_get(entries, i);
             if name != "." && name != ".." && name != ".git" {
-                let sub_rel: String = if chars_len(rel) == 0 { name } else { rel + "/" + name };
-                let subs: List[String] = collect_rel_files(fs, root, sub_rel);
-                let sn: Int = list_len(subs);
-                let mut j: Int = 0;
-                while j < sn {
-                    res_files = list_push(res_files, list_get(subs, j));
-                    j = j + 1;
+                if !path_has_segment(rel, name) {
+                    let sub_rel: String = if chars_len(rel) == 0 { name } else { rel + "/" + name };
+                    let subs: List[String] = collect_rel_files(fs, root, sub_rel, depth + 1);
+                    let sn: Int = list_len(subs);
+                    if sn == 0 {
+                        res_files = list_push(res_files, sub_rel);
+                    } else {
+                        let mut j: Int = 0;
+                        while j < sn {
+                            res_files = list_push(res_files, list_get(subs, j));
+                            j = j + 1;
+                        }
+                    }
                 }
             }
             i = i + 1;
@@ -143,8 +163,8 @@ pub fn pair_directories(
     dir_b: String,
     new_file: Bool
 ) -> List[FilePair] {
-    let files_a: List[String] = collect_rel_files(fs, dir_a, "");
-    let files_b: List[String] = collect_rel_files(fs, dir_b, "");
+    let files_a: List[String] = collect_rel_files(fs, dir_a, "", 0);
+    let files_b: List[String] = collect_rel_files(fs, dir_b, "", 0);
 
     let mut all_rel: List[String] = list_new();
     let na: Int = list_len(files_a);

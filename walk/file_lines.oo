@@ -113,12 +113,26 @@ pub fn parse_lines_content(path: String, content: String) -> FileLines {
 }
 
 pub fn read_file_lines(fs: &FsReadCap, path: String) -> FileLines {
-    if path == "-" {
+    if path == "/dev/null" {
+        return file_lines_empty("/dev/null");
+    }
+    if path == "-" || path == "/dev/stdin" || path == "/dev/fd/0" {
         let content: String = drain_stdin(fs);
         return parse_lines_content("(standard input)", content);
     }
     if !fs_path_exists(fs, path) {
         return file_lines_missing(path);
+    }
+    let sz: Int = fs_file_size(fs, path);
+    if sz > 104857600 {
+        return FileLines {
+            path: path,
+            lines: list_new(),
+            has_trailing_newline: false,
+            is_binary: true,
+            missing: false,
+            error_msg: ""
+        };
     }
     let r: Result[String, String] = fs_read_file(fs, path);
     if r.is_err() {
