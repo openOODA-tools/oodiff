@@ -70,20 +70,26 @@ pub fn match_compute_script(
     }
 
     let mut norm_a: List[String] = list_new();
+    let mut hashes_a: List[Int] = list_new();
     let mut ai: Int = 0;
     while ai < na {
-        norm_a = list_push(norm_a, normalize_line(list_get(a, ai), icase, ispace, bspace));
+        let na_str: String = normalize_line(list_get(a, ai), icase, ispace, bspace);
+        norm_a = list_push(norm_a, na_str);
+        hashes_a = list_push(hashes_a, hash_line(na_str));
         ai = ai + 1;
     }
 
     let mut norm_b: List[String] = list_new();
+    let mut hashes_b: List[Int] = list_new();
     let mut bi: Int = 0;
     while bi < nb {
-        norm_b = list_push(norm_b, normalize_line(list_get(b, bi), icase, ispace, bspace));
+        let nb_str: String = normalize_line(list_get(b, bi), icase, ispace, bspace);
+        norm_b = list_push(norm_b, nb_str);
+        hashes_b = list_push(hashes_b, hash_line(nb_str));
         bi = bi + 1;
     }
 
-    let bounds: TrimBounds = compute_trim_bounds(a, b, norm_a, norm_b, has_nl_a, has_nl_b);
+    let bounds: TrimBounds = compute_trim_bounds(a, b, norm_a, norm_b, hashes_a, hashes_b, has_nl_a, has_nl_b);
     let p: Int = bounds.prefix_len;
     let s: Int = bounds.suffix_len;
 
@@ -108,19 +114,23 @@ pub fn match_compute_script(
     if mid_a_len > 0 || mid_b_len > 0 {
         let mut mid_a: List[String] = list_new();
         let mut mid_norm_a: List[String] = list_new();
+        let mut mid_hashes_a: List[Int] = list_new();
         let mut ma_i: Int = 0;
         while ma_i < mid_a_len {
             mid_a = list_push(mid_a, list_get(a, p + ma_i));
             mid_norm_a = list_push(mid_norm_a, list_get(norm_a, p + ma_i));
+            mid_hashes_a = list_push(mid_hashes_a, list_get(hashes_a, p + ma_i));
             ma_i = ma_i + 1;
         }
 
         let mut mid_b: List[String] = list_new();
         let mut mid_norm_b: List[String] = list_new();
+        let mut mid_hashes_b: List[Int] = list_new();
         let mut mb_i: Int = 0;
         while mb_i < mid_b_len {
             mid_b = list_push(mid_b, list_get(b, p + mb_i));
             mid_norm_b = list_push(mid_norm_b, list_get(norm_b, p + mb_i));
+            mid_hashes_b = list_push(mid_hashes_b, list_get(hashes_b, p + mb_i));
             mb_i = mb_i + 1;
         }
 
@@ -140,7 +150,7 @@ pub fn match_compute_script(
             full_items = list_push(full_items, it_del);
             full_items = list_push(full_items, it_ins);
         } else {
-            let mid_items: List[EditItem] = solve_myers(mid_a, mid_b, mid_norm_a, mid_norm_b, p, p);
+            let mid_items: List[EditItem] = solve_myers(mid_a, mid_b, mid_norm_a, mid_norm_b, mid_hashes_a, mid_hashes_b, p, p);
             let n_mid: Int = list_len(mid_items);
             let mut mi: Int = 0;
             while mi < n_mid {

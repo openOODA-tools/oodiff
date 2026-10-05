@@ -120,6 +120,16 @@ pub fn read_file_lines(fs: &FsReadCap, path: String) -> FileLines {
         let content: String = drain_stdin(fs);
         return parse_lines_content("(standard input)", content);
     }
+    if str_starts_with(path, "/dev/fd/") {
+        return FileLines {
+            path: path,
+            lines: list_new(),
+            has_trailing_newline: false,
+            is_binary: false,
+            missing: true,
+            error_msg: "file descriptor redirection not supported under capability security"
+        };
+    }
     if !fs_path_exists(fs, path) {
         return file_lines_missing(path);
     }

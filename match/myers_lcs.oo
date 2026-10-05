@@ -71,6 +71,8 @@ pub fn solve_myers(
     b: List[String],
     norm_a: List[String],
     norm_b: List[String],
+    hashes_a: List[Int],
+    hashes_b: List[Int],
     base_a: Int,
     base_b: Int
 ) -> List[EditItem] {
@@ -89,7 +91,7 @@ pub fn solve_myers(
 
     // Check initial snake at (0, 0)
     let mut init_x: Int = 0;
-    while init_x < na && init_x < nb && list_get(norm_a, init_x) == list_get(norm_b, init_x) {
+    while init_x < na && init_x < nb && list_get(hashes_a, init_x) == list_get(hashes_b, init_x) && list_get(norm_a, init_x) == list_get(norm_b, init_x) {
         init_x = init_x + 1;
     }
     v = list_set(v, offset, init_x);
@@ -127,7 +129,7 @@ pub fn solve_myers(
                 x = list_get(prev_v, k_idx - 1) + 1;
             }
             let mut y: Int = x - k_val;
-            while x < na && y < nb && list_get(norm_a, x) == list_get(norm_b, y) {
+            while x < na && y < nb && list_get(hashes_a, x) == list_get(hashes_b, y) && list_get(norm_a, x) == list_get(norm_b, y) {
                 x = x + 1;
                 y = y + 1;
             }
@@ -165,7 +167,7 @@ pub fn solve_myers(
         let prev_y: Int = prev_x - prev_k;
 
         // Equal snake lines
-        while cur_x > prev_x && cur_y > prev_y && cur_x > 0 && cur_y > 0 && list_get(norm_a, cur_x - 1) == list_get(norm_b, cur_y - 1) {
+        while cur_x > prev_x && cur_y > prev_y && cur_x > 0 && cur_y > 0 && list_get(hashes_a, cur_x - 1) == list_get(hashes_b, cur_y - 1) && list_get(norm_a, cur_x - 1) == list_get(norm_b, cur_y - 1) {
             let eq_it: EditItem = EditItem {
                 op: op_equal(),
                 text: list_get(a, cur_x - 1),
@@ -201,7 +203,7 @@ pub fn solve_myers(
     }
 
     // Any remaining equal snake from (0, 0)
-    while cur_x > 0 && cur_y > 0 && list_get(norm_a, cur_x - 1) == list_get(norm_b, cur_y - 1) {
+    while cur_x > 0 && cur_y > 0 && list_get(hashes_a, cur_x - 1) == list_get(hashes_b, cur_y - 1) && list_get(norm_a, cur_x - 1) == list_get(norm_b, cur_y - 1) {
         let eq_zero: EditItem = EditItem {
             op: op_equal(),
             text: list_get(a, cur_x - 1),

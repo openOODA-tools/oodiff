@@ -81,19 +81,50 @@ fn collapse_spaces(s: String) -> String {
     return out;
 }
 
-fn lower_ascii(s: String) -> String {
+fn lower_utf8_char(c: String) -> String {
+    let b: Int = byte_at(c, 0);
+    if b >= 65 && b <= 90 {
+        return bytes_to_str(bytes_push(bytes_new(), b + 32));
+    }
+    if b == 195 {
+        let b2: Int = byte_at(c, 1);
+        if b2 >= 128 && b2 <= 158 && b2 != 151 {
+            let mut bs: List[Int] = bytes_new();
+            bs = bytes_push(bs, 195);
+            bs = bytes_push(bs, b2 + 32);
+            return bytes_to_str(bs);
+        }
+    }
+    if b == 208 {
+        let b2: Int = byte_at(c, 1);
+        if b2 >= 144 && b2 <= 159 {
+            let mut bs: List[Int] = bytes_new();
+            bs = bytes_push(bs, 208);
+            bs = bytes_push(bs, b2 + 32);
+            return bytes_to_str(bs);
+        }
+        if b2 >= 160 && b2 <= 175 {
+            let mut bs: List[Int] = bytes_new();
+            bs = bytes_push(bs, 209);
+            bs = bytes_push(bs, b2 - 16);
+            return bytes_to_str(bs);
+        }
+        if b2 == 129 {
+            let mut bs: List[Int] = bytes_new();
+            bs = bytes_push(bs, 209);
+            bs = bytes_push(bs, 145);
+            return bytes_to_str(bs);
+        }
+    }
+    return c;
+}
+
+fn lower_text(s: String) -> String {
     let n: Int = chars_len(s);
     let mut out: String = "";
     let mut i: Int = 0;
     while i < n {
-        let c: String = char_at(s, i);
-        let b: Int = byte_at(c, 0);
-        let lb: Int = to_lower_byte(b);
-        if lb != b {
-            out = out + bytes_to_str(bytes_push(bytes_new(), lb));
-        } else {
-            out = out + c;
-        }
+        out = out + lower_utf8_char(char_at(s, i));
         i = i + 1;
     }
     return out;
@@ -107,7 +138,19 @@ pub fn normalize_line(line: String, icase: Bool, ispace: Bool, bspace: Bool) -> 
         s = collapse_spaces(s);
     }
     if icase {
-        s = lower_ascii(s);
+        s = lower_text(s);
     }
     return s;
+}
+
+pub fn hash_line(s: String) -> Int {
+    let n: Int = chars_len(s);
+    let mut h: Int = 5381;
+    let mut i: Int = 0;
+    while i < n {
+        let b: Int = byte_at(char_at(s, i), 0);
+        h = (h * 33) ^ b;
+        i = i + 1;
+    }
+    return h;
 }

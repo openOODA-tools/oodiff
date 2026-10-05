@@ -154,6 +154,13 @@ test: $(BIN)
 	@echo "=== testing symlink cycle defense ==="
 	@mkdir -p .ooda-cache/sym_test && ln -sf . .ooda-cache/sym_test/loop 2>/dev/null || true; \
 	./$(BIN) -r .ooda-cache/sym_test qa/fixtures/dir_b | grep -q "Only in .ooda-cache/sym_test: loop" && echo "PASS: symlink cycle pruned"
+	@echo "=== testing UTF-8 case folding -i ==="
+	@./$(BIN) -i qa/fixtures/utf_a.txt qa/fixtures/utf_b.txt && echo "PASS: -i UTF-8 case folding"
+	@echo "=== testing stdin aliases (/dev/stdin, /dev/fd/0) ==="
+	@printf "apple\nbanana\ncherry\n" | ./$(BIN) /dev/stdin qa/fixtures/test_a.txt > /dev/null && echo "PASS: /dev/stdin alias"
+	@printf "apple\nbanana\ncherry\n" | ./$(BIN) /dev/fd/0 qa/fixtures/test_a.txt > /dev/null && echo "PASS: /dev/fd/0 alias"
+	@echo "=== testing process substitution /dev/fd/N diagnostic ==="
+	@./$(BIN) /dev/fd/3 qa/fixtures/test_a.txt 2>&1 | grep -q "file descriptor redirection not supported" && echo "PASS: /dev/fd/N diagnostic"
 	@echo "=== testing double-run determinism ==="
 	@./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt > .ooda-cache/run1.txt 2>&1 || true; \
 	./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt > .ooda-cache/run2.txt 2>&1 || true; \
