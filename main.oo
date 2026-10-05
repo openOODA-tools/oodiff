@@ -43,7 +43,7 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
         return Ok(0);
     }
     if opts.version_mode {
-        print("oodiff 0.2.0 (openOODA sovereign diff)\n");
+        print("oodiff 0.3.0 (openOODA sovereign diff)\n");
         return Ok(0);
     }
     if opts.mcp_mode {

@@ -194,7 +194,7 @@ parity: $(BIN)
 	diff -u .ooda-cache/exp_blk.txt .ooda-cache/act_blk.txt && echo "PASS: -B matches diff -B byte-for-byte"
 	@echo "ALL PARITY CHECKS PASSED"
 
-VERSION ?= 0.2.2
+VERSION ?= 0.3.0
 
 package-deb: $(BIN)
 	@mkdir -p dist/deb-root/DEBIAN dist/deb-root/usr/bin
