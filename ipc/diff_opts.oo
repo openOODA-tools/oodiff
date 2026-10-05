@@ -5,20 +5,30 @@
 // Setup: Pure argument scanning without filesystem access.
 //
 // Beats:
-//   1. Parse standard flags (-u, -r, -q, -i, -w, --mcp, --color, --no-color).
+//   1. Parse standard flags (-u, -r, -q, -i, -w, -b, -B, -N, -s, -L, --mcp, --color).
 //   2. Extract positional file or directory operands.
 //   3. Enforce operand presence rules and reject malformed invocations.
 
+pub fn format_normal() -> Int { return 0; }
+pub fn format_unified() -> Int { return 1; }
+
 pub type DiffOpts = struct {
+    format_mode: Int,
     context: Int,
     recursive: Bool,
     brief: Bool,
     ignore_case: Bool,
     ignore_all_space: Bool,
+    ignore_space_change: Bool,
+    ignore_blank_lines: Bool,
+    new_file: Bool,
+    report_identical: Bool,
     use_color: Bool,
     mcp_mode: Bool,
     help_mode: Bool,
     version_mode: Bool,
+    label_a: String,
+    label_b: String,
     operands: List[String],
     error_msg: String
 };
@@ -52,15 +62,22 @@ fn parse_uint(s: String, fallback: Int) -> Int {
 }
 
 pub fn parse_diff_args(args: List[String]) -> DiffOpts {
+    let mut fmt: Int = format_normal();
     let mut ctx: Int = 3;
     let mut rec: Bool = false;
     let mut brief: Bool = false;
     let mut icase: Bool = false;
     let mut ispace: Bool = false;
-    let mut color: Bool = true;
+    let mut bspace: Bool = false;
+    let mut bblank: Bool = false;
+    let mut new_f: Bool = false;
+    let mut rep_id: Bool = false;
+    let mut color: Bool = false;
     let mut mcp: Bool = false;
     let mut help: Bool = false;
     let mut ver: Bool = false;
+    let mut lbl_a: String = "";
+    let mut lbl_b: String = "";
     let mut ops: List[String] = list_new();
     let mut err: String = "";
 
@@ -74,8 +91,10 @@ pub fn parse_diff_args(args: List[String]) -> DiffOpts {
             ver = true;
         } else if a == "--mcp" {
             mcp = true;
+        } else if a == "--normal" {
+            fmt = format_normal();
         } else if a == "-u" || a == "--unified" {
-            // default unified context is 3
+            fmt = format_unified();
         } else if a == "-r" || a == "--recursive" {
             rec = true;
         } else if a == "-q" || a == "--brief" {
@@ -84,11 +103,29 @@ pub fn parse_diff_args(args: List[String]) -> DiffOpts {
             icase = true;
         } else if a == "-w" || a == "--ignore-all-space" {
             ispace = true;
-        } else if a == "--no-color" {
-            color = false;
+        } else if a == "-b" || a == "--ignore-space-change" {
+            bspace = true;
+        } else if a == "-B" || a == "--ignore-blank-lines" {
+            bblank = true;
+        } else if a == "-N" || a == "--new-file" {
+            new_f = true;
+        } else if a == "-s" || a == "--report-identical-files" {
+            rep_id = true;
         } else if a == "--color" {
             color = true;
+        } else if a == "--no-color" {
+            color = false;
+        } else if a == "-L" || a == "--label" {
+            if i + 1 < n {
+                let lbl_val: String = list_get(args, i + 1);
+                if chars_len(lbl_a) == 0 { lbl_a = lbl_val; }
+                else { lbl_b = lbl_val; }
+                i = i + 1;
+            } else {
+                err = "option requires an argument -- 'L'";
+            }
         } else if a == "-U" {
+            fmt = format_unified();
             if i + 1 < n {
                 ctx = parse_uint(list_get(args, i + 1), 3);
                 i = i + 1;
@@ -96,6 +133,7 @@ pub fn parse_diff_args(args: List[String]) -> DiffOpts {
                 err = "option requires an argument -- 'U'";
             }
         } else if str_starts_with(a, "-U") {
+            fmt = format_unified();
             let num_str: String = str_slice(a, 2, chars_len(a));
             ctx = parse_uint(num_str, 3);
         } else if str_starts_with(a, "-") && a != "-" {
@@ -116,15 +154,22 @@ pub fn parse_diff_args(args: List[String]) -> DiffOpts {
     }
 
     return DiffOpts {
+        format_mode: fmt,
         context: ctx,
         recursive: rec,
         brief: brief,
         ignore_case: icase,
         ignore_all_space: ispace,
+        ignore_space_change: bspace,
+        ignore_blank_lines: bblank,
+        new_file: new_f,
+        report_identical: rep_id,
         use_color: color,
         mcp_mode: mcp,
         help_mode: help,
         version_mode: ver,
+        label_a: lbl_a,
+        label_b: lbl_b,
         operands: ops,
         error_msg: err
     };

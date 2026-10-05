@@ -116,17 +116,33 @@ test: $(BIN)
 	@./$(BIN) qa/fixtures/test_a.txt qa/fixtures/nonexistent.txt > /dev/null 2>&1; test $$? -eq 2 && echo "PASS: nonexistent file exits 2"
 	@echo "=== testing identical files (expect 0) ==="
 	@./$(BIN) qa/fixtures/test_a.txt qa/fixtures/test_a.txt > /dev/null && echo "PASS: identical files exit 0"
-	@echo "=== testing single file diff (expect 1) ==="
-	@./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | grep -q -- "-banana" && echo "PASS: diff contains deletion"
-	@./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | grep -q -- "+orange" && echo "PASS: diff contains addition"
+	@echo "=== testing report-identical -s ==="
+	@./$(BIN) -s qa/fixtures/test_a.txt qa/fixtures/test_a.txt | grep -q "identical" && echo "PASS: -s reports identical"
+	@echo "=== testing single file normal diff ==="
+	@./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | grep -q "2c2" && echo "PASS: normal diff default"
+	@echo "=== testing single file unified diff ==="
+	@./$(BIN) -u --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | grep -q -- "-banana" && echo "PASS: unified diff contains deletion"
+	@./$(BIN) -u --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | grep -q -- "+orange" && echo "PASS: unified diff contains addition"
+	@echo "=== testing case insensitivity -i ==="
+	@./$(BIN) -i qa/fixtures/case_a.txt qa/fixtures/case_b.txt && echo "PASS: -i ignores case"
+	@echo "=== testing ignore all space -w ==="
+	@./$(BIN) -w qa/fixtures/sp_a.txt qa/fixtures/sp_b.txt && echo "PASS: -w ignores all space"
+	@echo "=== testing ignore space change -b ==="
+	@./$(BIN) -b qa/fixtures/bsp_a.txt qa/fixtures/bsp_b.txt && echo "PASS: -b ignores space change"
+	@echo "=== testing ignore blank lines -B ==="
+	@./$(BIN) -B qa/fixtures/blk_a.txt qa/fixtures/blk_b.txt && echo "PASS: -B ignores blank lines"
 	@echo "=== testing stdin pipe ==="
-	@printf "apple\npear\n" | ./$(BIN) --no-color qa/fixtures/test_a.txt - | grep -q -- "+pear" && echo "PASS: stdin diff works"
+	@printf "apple\npear\n" | ./$(BIN) -u --no-color qa/fixtures/test_a.txt - | grep -q -- "+pear" && echo "PASS: stdin diff works"
 	@echo "=== testing trailing newline diagnostic ==="
 	@./$(BIN) --no-color qa/fixtures/no_nl.txt qa/fixtures/with_nl.txt | grep -q "No newline at end of file" && echo "PASS: newline diagnostic present"
+	@echo "=== testing label -L ==="
+	@./$(BIN) -u -L "FOO" -L "BAR" qa/fixtures/test_a.txt qa/fixtures/test_b.txt | grep -q -- "--- FOO" && echo "PASS: -L sets labels"
 	@echo "=== testing brief mode ==="
 	@./$(BIN) -q qa/fixtures/test_a.txt qa/fixtures/test_b.txt | grep -q "differ" && echo "PASS: brief mode reports differ"
 	@echo "=== testing recursive directory walk ==="
 	@./$(BIN) --no-color -r qa/fixtures/dir_a qa/fixtures/dir_b | grep -q "Only in qa/fixtures/dir_a: del.txt" && echo "PASS: directory walk reports Only in"
+	@echo "=== testing recursive directory new-file -N ==="
+	@./$(BIN) --no-color -r -N qa/fixtures/dir_a qa/fixtures/dir_b | grep -q "diff -r -N" && echo "PASS: directory walk handles -N"
 	@echo "=== testing MCP stdio initialize ==="
 	@printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n' | ./$(BIN) --mcp | grep -q "protocolVersion" && echo "PASS: MCP initialize"
 	@echo "=== testing MCP stdio tools/list ==="
@@ -140,10 +156,27 @@ test: $(BIN)
 	@echo "ALL TESTS PASSED"
 
 parity: $(BIN)
-	@echo "=== verifying parity against diff -u ==="
+	@echo "=== verifying normal diff parity ==="
+	@diff qa/fixtures/test_a.txt qa/fixtures/test_b.txt > .ooda-cache/exp_norm.txt || true; \
+	./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt > .ooda-cache/act_norm.txt || true; \
+	diff -u .ooda-cache/exp_norm.txt .ooda-cache/act_norm.txt && echo "PASS: normal diff matches diff byte-for-byte"
+	@echo "=== verifying unified diff parity ==="
 	@diff -u qa/fixtures/test_a.txt qa/fixtures/test_b.txt | tail -n +3 > .ooda-cache/diff_expected.txt || true; \
-	./$(BIN) --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | tail -n +3 > .ooda-cache/diff_actual.txt || true; \
+	./$(BIN) -u --no-color qa/fixtures/test_a.txt qa/fixtures/test_b.txt | tail -n +3 > .ooda-cache/diff_actual.txt || true; \
 	diff -u .ooda-cache/diff_expected.txt .ooda-cache/diff_actual.txt && echo "PASS: hunks match diff -u byte-for-byte"
+	@echo "=== verifying recursive directory parity ==="
+	@diff -r qa/fixtures/dir_a qa/fixtures/dir_b > .ooda-cache/exp_rec.txt || true; \
+	./$(BIN) --no-color -r qa/fixtures/dir_a qa/fixtures/dir_b > .ooda-cache/act_rec.txt || true; \
+	diff -u .ooda-cache/exp_rec.txt .ooda-cache/act_rec.txt && echo "PASS: recursive diff matches diff -r byte-for-byte"
+	@echo "=== verifying recursive new-file parity ==="
+	@diff -r -N qa/fixtures/dir_a qa/fixtures/dir_b > .ooda-cache/exp_rec_n.txt || true; \
+	./$(BIN) --no-color -r -N qa/fixtures/dir_a qa/fixtures/dir_b > .ooda-cache/act_rec_n.txt || true; \
+	diff -u .ooda-cache/exp_rec_n.txt .ooda-cache/act_rec_n.txt && echo "PASS: recursive -r -N matches diff -r -N byte-for-byte"
+	@echo "=== verifying ignore-blank-lines -B parity ==="
+	@diff -B qa/fixtures/blk_x.txt qa/fixtures/blk_y.txt > .ooda-cache/exp_blk.txt || true; \
+	./$(BIN) --no-color -B qa/fixtures/blk_x.txt qa/fixtures/blk_y.txt > .ooda-cache/act_blk.txt || true; \
+	diff -u .ooda-cache/exp_blk.txt .ooda-cache/act_blk.txt && echo "PASS: -B matches diff -B byte-for-byte"
+	@echo "ALL PARITY CHECKS PASSED"
 
 clean:
 	@rm -rf dist .ooda-cache

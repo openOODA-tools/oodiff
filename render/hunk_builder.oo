@@ -10,6 +10,7 @@
 //   3. Merge adjacent hunks when intervening unchanged lines fall within context limits.
 
 import "match/edit_op.oo";
+import "match/normalize_line.oo";
 
 pub type Hunk = struct {
     start_a: Int,
@@ -19,23 +20,55 @@ pub type Hunk = struct {
     items: List[EditItem]
 };
 
-fn find_mod_indices(items: List[EditItem]) -> List[Int] {
+fn find_mod_indices(
+    items: List[EditItem],
+    bblank: Bool,
+    icase: Bool,
+    ispace: Bool,
+    bspace: Bool
+) -> List[Int] {
     let mut indices: List[Int] = list_new();
     let n: Int = list_len(items);
     let mut i: Int = 0;
     while i < n {
         let it: EditItem = list_get(items, i);
-        if it.op != op_equal() {
-            indices = list_push(indices, i);
+        if it.op == op_equal() {
+            i = i + 1;
+        } else {
+            let start_idx: Int = i;
+            let mut has_non_blank: Bool = !bblank;
+            while i < n && list_get(items, i).op != op_equal() {
+                if bblank && !has_non_blank {
+                    let cur_it: EditItem = list_get(items, i);
+                    let norm: String = normalize_line(cur_it.text, icase, ispace, bspace);
+                    if chars_len(norm) > 0 {
+                        has_non_blank = true;
+                    }
+                }
+                i = i + 1;
+            }
+            if has_non_blank {
+                let mut k: Int = start_idx;
+                while k < i {
+                    indices = list_push(indices, k);
+                    k = k + 1;
+                }
+            }
         }
-        i = i + 1;
     }
     return indices;
 }
 
-pub fn build_hunks(items: List[EditItem], context: Int) -> List[Hunk] {
+pub fn build_hunks(
+    items: List[EditItem],
+    context: Int,
+    bblank: Bool,
+    icase: Bool,
+    ispace: Bool,
+    bspace: Bool
+) -> List[Hunk] {
     let mut hunk_list: List[Hunk] = list_new();
-    let mod_indices: List[Int] = find_mod_indices(items);
+    let mod_indices: List[Int] = find_mod_indices(items, bblank, icase, ispace, bspace);
     let n_mods: Int = list_len(mod_indices);
     if n_mods == 0 {
         return hunk_list;

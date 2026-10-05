@@ -43,6 +43,17 @@ fn drain_stdin(fs: &FsReadCap) -> String {
     return buf;
 }
 
+pub fn file_lines_empty(path: String) -> FileLines {
+    return FileLines {
+        path: path,
+        lines: list_new(),
+        has_trailing_newline: false,
+        is_binary: false,
+        missing: false,
+        error_msg: ""
+    };
+}
+
 pub fn file_lines_missing(path: String) -> FileLines {
     return FileLines {
         path: path,

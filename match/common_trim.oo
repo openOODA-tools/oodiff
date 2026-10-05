@@ -14,18 +14,25 @@ pub type TrimBounds = struct {
     suffix_len: Int
 };
 
-pub fn compute_trim_bounds(a: List[String], b: List[String], has_nl_a: Bool, has_nl_b: Bool) -> TrimBounds {
+pub fn compute_trim_bounds(
+    a: List[String],
+    b: List[String],
+    norm_a: List[String],
+    norm_b: List[String],
+    has_nl_a: Bool,
+    has_nl_b: Bool
+) -> TrimBounds {
     let na: Int = list_len(a);
     let nb: Int = list_len(b);
     let limit: Int = if na < nb { na } else { nb };
     let max_p: Int = if has_nl_a != has_nl_b && limit > 0 { limit - 1 } else { limit };
     let mut p: Int = 0;
-    while p < max_p && list_get(a, p) == list_get(b, p) {
+    while p < max_p && list_get(norm_a, p) == list_get(norm_b, p) {
         p = p + 1;
     }
     let max_s: Int = if has_nl_a != has_nl_b && limit > 0 { limit - 1 } else { limit };
     let mut s: Int = 0;
-    while s < (max_s - p) && list_get(a, na - 1 - s) == list_get(b, nb - 1 - s) {
+    while s < (max_s - p) && list_get(norm_a, na - 1 - s) == list_get(norm_b, nb - 1 - s) {
         s = s + 1;
     }
     return TrimBounds {

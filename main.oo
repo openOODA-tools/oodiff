@@ -17,6 +17,24 @@ import "render/anchor.oo";
 import "ipc/anchor.oo";
 import "ipc/diff_opts.oo";
 
+fn build_rec_hdr(opts: DiffOpts, pa: String, pb: String) -> String {
+    let mut s: String = "diff -r";
+    if opts.format_mode == 1 {
+        if opts.context == 3 {
+            s = s + " -u";
+        } else {
+            s = s + " -U" + to_string(opts.context);
+        }
+    }
+    if opts.ignore_case { s = s + " -i"; }
+    if opts.ignore_all_space { s = s + " -w"; }
+    if opts.ignore_space_change { s = s + " -b"; }
+    if opts.ignore_blank_lines { s = s + " -B"; }
+    if opts.new_file { s = s + " -N"; }
+    if opts.use_color { s = s + " --color"; }
+    return s + " " + pa + " " + pb + "\n";
+}
+
 pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result[Int, String] {
     let opts: DiffOpts = ipc_parse_args(args);
 
@@ -25,7 +43,7 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
         return Ok(0);
     }
     if opts.version_mode {
-        print("oodiff 0.1.0 (openOODA sovereign diff)\n");
+        print("oodiff 0.2.0 (openOODA sovereign diff)\n");
         return Ok(0);
     }
     if opts.mcp_mode {
@@ -42,7 +60,7 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
     let op_a: String = list_get(opts.operands, 0);
     let op_b: String = list_get(opts.operands, 1);
 
-    let pairs: List[FilePair] = walk_pair_operands(fs, op_a, op_b, opts.recursive);
+    let pairs: List[FilePair] = walk_pair_operands(fs, op_a, op_b, opts.recursive, opts.new_file, opts.label_a, opts.label_b);
     let n_pairs: Int = list_len(pairs);
     let mut any_diff: Bool = false;
 
@@ -70,23 +88,43 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
             print(render_only_in(op_b, p.rel_path));
             any_diff = true;
         } else {
-            let script: EditScript = match_compute_script(p.file_a.lines, p.file_b.lines, p.file_a.has_trailing_newline, p.file_b.has_trailing_newline);
+            let script: EditScript = match_compute_script(
+                p.file_a.lines,
+                p.file_b.lines,
+                p.file_a.has_trailing_newline,
+                p.file_b.has_trailing_newline,
+                opts.ignore_case,
+                opts.ignore_all_space,
+                opts.ignore_space_change,
+                opts.ignore_blank_lines
+            );
             if script.has_diff {
                 any_diff = true;
-                let text: String = render_diff_pair(
-                    script,
-                    p.label_a,
-                    p.label_b,
-                    list_len(p.file_a.lines),
-                    list_len(p.file_b.lines),
-                    p.file_a.has_trailing_newline,
-                    p.file_b.has_trailing_newline,
-                    p.file_a.is_binary,
-                    p.file_b.is_binary,
-                    opts.context,
-                    opts.brief,
-                    opts.use_color
-                );
+                if opts.recursive && !opts.brief && !p.file_a.is_binary && !p.file_b.is_binary {
+                    print(build_rec_hdr(opts, p.path_a, p.path_b));
+                }
+            }
+            let text: String = render_diff_pair(
+                script,
+                p.label_a,
+                p.label_b,
+                list_len(p.file_a.lines),
+                list_len(p.file_b.lines),
+                p.file_a.has_trailing_newline,
+                p.file_b.has_trailing_newline,
+                p.file_a.is_binary,
+                p.file_b.is_binary,
+                opts.format_mode,
+                opts.context,
+                opts.brief,
+                opts.report_identical,
+                opts.use_color,
+                opts.ignore_blank_lines,
+                opts.ignore_case,
+                opts.ignore_all_space,
+                opts.ignore_space_change
+            );
+            if chars_len(text) > 0 {
                 print(text);
             }
         }
@@ -105,11 +143,17 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
 fn render_help() -> String {
     return "usage: oodiff [options] from-file to-file\n"
         + "Compare files line by line.\n\n"
+        + "      --normal                 output a normal diff (default)\n"
         + "  -u, -U NUM, --unified[=NUM]  output NUM (default 3) lines of unified context\n"
         + "  -r, --recursive              recursively compare any subdirectories found\n"
         + "  -q, --brief                  report only when files differ\n"
+        + "  -s, --report-identical-files report when two files are the same\n"
         + "  -i, --ignore-case            ignore case differences in file contents\n"
         + "  -w, --ignore-all-space       ignore all white space\n"
+        + "  -b, --ignore-space-change    ignore changes in the amount of white space\n"
+        + "  -B, --ignore-blank-lines     ignore changes whose lines are all blank\n"
+        + "  -N, --new-file               treat absent files as empty\n"
+        + "  -L, --label LABEL            use LABEL instead of file name in diff headers\n"
         + "      --color                  colorize the output\n"
         + "      --no-color               do not colorize output\n"
         + "      --mcp                    run in Model Context Protocol mode over stdio\n"

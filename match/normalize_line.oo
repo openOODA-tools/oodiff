@@ -1,0 +1,113 @@
+// # Line Normalization for Equivalence Matching
+//
+// Logline: Transforms line strings under case folding and whitespace policy flags.
+//
+// Setup: Pure string manipulation. Preserves negative-trust safety and determinism.
+//
+// Beats:
+//   1. Fold ASCII uppercase characters to lowercase when case-insensitive.
+//   2. Strip all whitespace characters when ignore-all-space is enabled.
+//   3. Collapse multiple whitespace sequences into single space characters.
+
+fn to_lower_byte(b: Int) -> Int {
+    if b >= 65 && b <= 90 { return b + 32; }
+    return b;
+}
+
+fn is_space_byte(b: Int) -> Bool {
+    return b == 32 || b == 9 || b == 10 || b == 13;
+}
+
+pub fn is_blank_string(s: String) -> Bool {
+    let n: Int = chars_len(s);
+    let mut i: Int = 0;
+    while i < n {
+        let b: Int = byte_at(char_at(s, i), 0);
+        if !is_space_byte(b) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+fn strip_all_whitespace(s: String) -> String {
+    let n: Int = chars_len(s);
+    let mut out: String = "";
+    let mut i: Int = 0;
+    while i < n {
+        let c: String = char_at(s, i);
+        let b: Int = byte_at(c, 0);
+        if !is_space_byte(b) {
+            out = out + c;
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+fn trim_trailing_spaces(s: String) -> String {
+    let n: Int = chars_len(s);
+    let mut last: Int = n;
+    while last > 0 {
+        let b: Int = byte_at(char_at(s, last - 1), 0);
+        if is_space_byte(b) {
+            last = last - 1;
+        } else {
+            return str_slice(s, 0, last);
+        }
+    }
+    return "";
+}
+
+fn collapse_spaces(s: String) -> String {
+    let trimmed: String = trim_trailing_spaces(s);
+    let n: Int = chars_len(trimmed);
+    let mut out: String = "";
+    let mut in_space: Bool = false;
+    let mut i: Int = 0;
+    while i < n {
+        let c: String = char_at(trimmed, i);
+        let b: Int = byte_at(c, 0);
+        if is_space_byte(b) {
+            if !in_space {
+                out = out + " ";
+                in_space = true;
+            }
+        } else {
+            out = out + c;
+            in_space = false;
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+fn lower_ascii(s: String) -> String {
+    let n: Int = chars_len(s);
+    let mut out: String = "";
+    let mut i: Int = 0;
+    while i < n {
+        let c: String = char_at(s, i);
+        let b: Int = byte_at(c, 0);
+        let lb: Int = to_lower_byte(b);
+        if lb != b {
+            out = out + bytes_to_str(bytes_push(bytes_new(), lb));
+        } else {
+            out = out + c;
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+pub fn normalize_line(line: String, icase: Bool, ispace: Bool, bspace: Bool) -> String {
+    let mut s: String = line;
+    if ispace {
+        s = strip_all_whitespace(s);
+    } else if bspace {
+        s = collapse_spaces(s);
+    }
+    if icase {
+        s = lower_ascii(s);
+    }
+    return s;
+}

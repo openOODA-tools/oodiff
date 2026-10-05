@@ -1,0 +1,155 @@
+// # Normal Diff Text Renderer
+//
+// Logline: Formats edit scripts into standard POSIX/ed-style normal diff syntax.
+//
+// Setup: Pure string formatting over edit scripts. Negative-trust and panic-free.
+//
+// Beats:
+//   1. Cluster contiguous delete and insert runs into change hunks.
+//   2. Suppress hunks whose changes are entirely blank when -B is active.
+//   3. Format 1-based coordinates and ed-style change banners.
+
+import "match/edit_op.oo";
+import "match/normalize_line.oo";
+import "render_color.oo";
+
+fn is_block_all_blank(
+    del_items: List[EditItem],
+    add_items: List[EditItem],
+    icase: Bool,
+    ispace: Bool,
+    bspace: Bool
+) -> Bool {
+    let nd: Int = list_len(del_items);
+    let mut di: Int = 0;
+    while di < nd {
+        let it: EditItem = list_get(del_items, di);
+        let norm: String = normalize_line(it.text, icase, ispace, bspace);
+        if chars_len(norm) > 0 { return false; }
+        di = di + 1;
+    }
+    let na: Int = list_len(add_items);
+    let mut ai: Int = 0;
+    while ai < na {
+        let it: EditItem = list_get(add_items, ai);
+        let norm: String = normalize_line(it.text, icase, ispace, bspace);
+        if chars_len(norm) > 0 { return false; }
+        ai = ai + 1;
+    }
+    return true;
+}
+
+pub fn render_normal_diff(
+    items: List[EditItem],
+    total_a: Int,
+    total_b: Int,
+    has_nl_a: Bool,
+    has_nl_b: Bool,
+    use_color: Bool,
+    bblank: Bool,
+    icase: Bool,
+    ispace: Bool,
+    bspace: Bool
+) -> String {
+    let mut out: String = "";
+    let n: Int = list_len(items);
+    let mut i: Int = 0;
+    let mut last_a: Int = 0;
+    let mut last_b: Int = 0;
+
+    while i < n {
+        let it: EditItem = list_get(items, i);
+        if it.op == op_equal() {
+            last_a = it.line_a;
+            last_b = it.line_b;
+            i = i + 1;
+        } else {
+            let a_coord: Int = last_a;
+            let b_coord: Int = last_b;
+            let mut del_items: List[EditItem] = list_new();
+            let mut add_items: List[EditItem] = list_new();
+
+            while i < n && list_get(items, i).op != op_equal() {
+                let cur_it: EditItem = list_get(items, i);
+                if cur_it.op == op_delete() {
+                    del_items = list_push(del_items, cur_it);
+                    last_a = cur_it.line_a;
+                } else if cur_it.op == op_insert() {
+                    add_items = list_push(add_items, cur_it);
+                    last_b = cur_it.line_b;
+                }
+                i = i + 1;
+            }
+
+            let nd: Int = list_len(del_items);
+            let na: Int = list_len(add_items);
+
+            if !(bblank && is_block_all_blank(del_items, add_items, icase, ispace, bspace)) {
+                if nd > 0 && na == 0 {
+                    let a_start: Int = list_get(del_items, 0).line_a;
+                    let a_end: Int = list_get(del_items, nd - 1).line_a;
+                    let a_part: String = if a_start == a_end { to_string(a_start) } else { to_string(a_start) + "," + to_string(a_end) };
+                    let hdr: String = a_part + "d" + to_string(b_coord) + "\n";
+                    out = out + color_cyan(hdr, use_color);
+                    let mut di: Int = 0;
+                    while di < nd {
+                        let dit: EditItem = list_get(del_items, di);
+                        let lstr: String = "< " + dit.text + "\n";
+                        out = out + color_red(lstr, use_color);
+                        if dit.line_a == total_a && !has_nl_a {
+                            out = out + "\\ No newline at end of file\n";
+                        }
+                        di = di + 1;
+                    }
+                } else if nd == 0 && na > 0 {
+                    let b_start: Int = list_get(add_items, 0).line_b;
+                    let b_end: Int = list_get(add_items, na - 1).line_b;
+                    let b_part: String = if b_start == b_end { to_string(b_start) } else { to_string(b_start) + "," + to_string(b_end) };
+                    let hdr: String = to_string(a_coord) + "a" + b_part + "\n";
+                    out = out + color_cyan(hdr, use_color);
+                    let mut ai: Int = 0;
+                    while ai < na {
+                        let ait: EditItem = list_get(add_items, ai);
+                        let lstr: String = "> " + ait.text + "\n";
+                        out = out + color_green(lstr, use_color);
+                        if ait.line_b == total_b && !has_nl_b {
+                            out = out + "\\ No newline at end of file\n";
+                        }
+                        ai = ai + 1;
+                    }
+                } else if nd > 0 && na > 0 {
+                    let a_start: Int = list_get(del_items, 0).line_a;
+                    let a_end: Int = list_get(del_items, nd - 1).line_a;
+                    let a_part: String = if a_start == a_end { to_string(a_start) } else { to_string(a_start) + "," + to_string(a_end) };
+                    let b_start: Int = list_get(add_items, 0).line_b;
+                    let b_end: Int = list_get(add_items, na - 1).line_b;
+                    let b_part: String = if b_start == b_end { to_string(b_start) } else { to_string(b_start) + "," + to_string(b_end) };
+                    let hdr: String = a_part + "c" + b_part + "\n";
+                    out = out + color_cyan(hdr, use_color);
+                    let mut di: Int = 0;
+                    while di < nd {
+                        let dit: EditItem = list_get(del_items, di);
+                        let lstr: String = "< " + dit.text + "\n";
+                        out = out + color_red(lstr, use_color);
+                        if dit.line_a == total_a && !has_nl_a {
+                            out = out + "\\ No newline at end of file\n";
+                        }
+                        di = di + 1;
+                    }
+                    out = out + "---\n";
+                    let mut ai: Int = 0;
+                    while ai < na {
+                        let ait: EditItem = list_get(add_items, ai);
+                        let lstr: String = "> " + ait.text + "\n";
+                        out = out + color_green(lstr, use_color);
+                        if ait.line_b == total_b && !has_nl_b {
+                            out = out + "\\ No newline at end of file\n";
+                        }
+                        ai = ai + 1;
+                    }
+                }
+            }
+        }
+    }
+    return out;
+}
