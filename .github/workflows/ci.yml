@@ -62,4 +62,5 @@ jobs:
           ls -la dist/*.deb dist/*.rpm
           sudo dpkg -i dist/oodiff_*_amd64.deb
           /usr/bin/oodiff --version
-          /usr/bin/oodiff -u /dev/null README.md
+          /usr/bin/oodiff qa/fixtures/test_a.txt qa/fixtures/test_a.txt
+          /usr/bin/oodiff qa/fixtures/test_a.txt qa/fixtures/test_b.txt >/dev/null 2>&1 || test $? -eq 1
