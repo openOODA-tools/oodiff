@@ -2,21 +2,11 @@
 //
 // Logline: Presents one comparison engine through three surfaces that must agree.
 //
-// Setup: Bridges argv parsing and MCP stdio execution.
+// Setup: Pure shim re-exporting options parser and MCP server.
 //
 // Beats:
-//   1. Expose argv options parser for CLI dispatch.
-//   2. Expose MCP stdio server transport loop.
-//   3. Maintain standard exit code conventions.
+//   1. Re-export CLI diff options parser.
+//   2. Re-export MCP stdio server transport loop.
 
-import "std/fs/os/fs.oo";
 import "diff_opts.oo";
 import "mcp_serve.oo";
-
-pub fn ipc_parse_args(args: List[String]) -> DiffOpts {
-    return parse_diff_args(args);
-}
-
-pub fn ipc_run_mcp(fs: &FsReadCap) -> Int {
-    return run_mcp_server(fs);
-}

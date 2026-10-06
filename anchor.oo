@@ -1,17 +1,14 @@
 // # oodiff Project Anchor
 //
-// Logline: Names the four oodiff domains and the one job each one owns.
+// Logline: Names the four oodiff domains and re-exports root subsystem anchors.
 //
-// Setup: Skeleton. Imports nothing and re-exports nothing; it exists to be the map.
+// Setup: Pure shim importing subsystem anchors.
 //
 // Beats:
-//   1. Bind walk, match, render, and ipc to a single responsibility each.
-//   2. Leave the domain list readable so a missing domain is obvious.
+//   1. Re-export walk and match subsystems.
+//   2. Re-export render and ipc subsystems.
 
-pub fn oodiff_domains() -> List[String] {
-    let d: List[String] = list_new();
-    let d2: List[String] = list_push(d, "walk: operands to comparable streams");
-    let d3: List[String] = list_push(d2, "match: two streams to an edit script");
-    let d4: List[String] = list_push(d3, "render: edit script to diff text");
-    return list_push(d4, "ipc: CLI, MCP stdio, and AF_UNIX socket");
-}
+import "walk/anchor.oo";
+import "match/anchor.oo";
+import "render/anchor.oo";
+import "ipc/anchor.oo";

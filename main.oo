@@ -9,13 +9,13 @@
 //   2. Pair operands and run comparison across all files.
 //   3. Set exit code 0 for identical, 1 for diffs found, 2 for trouble.
 
-import "walk/anchor.oo";
 import "walk/pair_operands.oo";
-import "match/anchor.oo";
+import "walk/walk_operands.oo";
 import "match/edit_op.oo";
-import "render/anchor.oo";
-import "ipc/anchor.oo";
+import "match/compute_script.oo";
+import "render/render_pair.oo";
 import "ipc/diff_opts.oo";
+import "ipc/mcp_serve.oo";
 
 fn build_rec_hdr(opts: DiffOpts, pa: String, pb: String) -> String {
     let mut s: String = "diff -r";
@@ -36,7 +36,7 @@ fn build_rec_hdr(opts: DiffOpts, pa: String, pb: String) -> String {
 }
 
 pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result[Int, String] {
-    let opts: DiffOpts = ipc_parse_args(args);
+    let opts: DiffOpts = parse_diff_args(args);
 
     if opts.help_mode {
         print(render_help());
@@ -47,7 +47,7 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
         return Ok(0);
     }
     if opts.mcp_mode {
-        ipc_run_mcp(fs);
+        run_mcp_server(fs);
         return Ok(0);
     }
 

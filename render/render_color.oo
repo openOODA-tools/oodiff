@@ -1,38 +1,53 @@
 // # Terminal Color Formatting
 //
-// Logline: Generates ANSI escape sequences for unified diff syntax highlighting.
+// Logline: Generates ANSI escape sequences for unified and normal diff syntax highlighting.
 //
 // Setup: Pure string formatting using explicit byte construction for ESC characters.
 //
 // Beats:
-//   1. Build ESC byte safely avoiding string literal compile traps.
-//   2. Colorize file headers, hunk range markers, additions, and deletions.
-//   3. Provide clean pass-through when color is disabled.
-
-fn esc_prefix() -> String {
-    return bytes_to_str(bytes_push(bytes_new(), 27)) + "[";
-}
-
-pub fn color_reset() -> String {
-    return esc_prefix() + "0m";
-}
+//   1. Colorize hunk additions, deletions, headers, and context lines.
+//   2. Provide backward-compatible color aliases for red, green, and cyan.
+//   3. Wrap bold text segments safely with reset codes.
+//   4. Pass through unchanged text when color is disabled.
 
 pub fn color_bold(text: String, enabled: Bool) -> String {
     if !enabled { return text; }
-    return esc_prefix() + "1m" + text + color_reset();
+    let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
+    return esc + "[1m" + text + esc + "[0m";
+}
+
+pub fn color_diff_added(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
+    return esc + "[32m" + text + esc + "[0m";
+}
+
+pub fn color_diff_removed(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
+    return esc + "[31m" + text + esc + "[0m";
+}
+
+pub fn color_diff_header(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
+    return esc + "[36m" + text + esc + "[0m";
+}
+
+pub fn color_diff_context(text: String, enabled: Bool) -> String {
+    if !enabled { return text; }
+    let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
+    return esc + "[90m" + text + esc + "[0m";
 }
 
 pub fn color_red(text: String, enabled: Bool) -> String {
-    if !enabled { return text; }
-    return esc_prefix() + "31m" + text + color_reset();
+    return color_diff_removed(text, enabled);
 }
 
 pub fn color_green(text: String, enabled: Bool) -> String {
-    if !enabled { return text; }
-    return esc_prefix() + "32m" + text + color_reset();
+    return color_diff_added(text, enabled);
 }
 
 pub fn color_cyan(text: String, enabled: Bool) -> String {
-    if !enabled { return text; }
-    return esc_prefix() + "36m" + text + color_reset();
+    return color_diff_header(text, enabled);
 }

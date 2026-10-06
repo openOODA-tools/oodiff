@@ -1,0 +1,35 @@
+// # Walk Operands - File Pair Traversal
+//
+// Logline: Turns two operands, files or directories, into aligned line streams.
+//
+// Setup: Reads only, under FsReadCap. Decides what is compared, never how.
+//
+// Beats:
+//   1. Admit a single file pair, or pair two trees by relative path.
+//   2. Refuse an operand it cannot read instead of skipping it quietly.
+//   3. Export unified file pair resolution functions.
+
+import "std/fs/os/fs.oo";
+import "file_lines.oo";
+import "pair_operands.oo";
+
+pub fn walk_read_file(fs: &FsReadCap, path: String) -> FileLines {
+    return read_file_lines(fs, path);
+}
+
+pub fn walk_pair_operands(
+    fs: &FsReadCap,
+    op_a: String,
+    op_b: String,
+    recursive: Bool,
+    new_file: Bool,
+    label_a: String,
+    label_b: String
+) -> List[FilePair] {
+    let is_dir_a: Bool = fs_is_dir(fs, op_a);
+    let is_dir_b: Bool = fs_is_dir(fs, op_b);
+    if is_dir_a && is_dir_b {
+        return pair_directories(fs, op_a, op_b, new_file);
+    }
+    return pair_single_files(fs, op_a, op_b, label_a, label_b);
+}

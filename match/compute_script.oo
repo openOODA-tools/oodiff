@@ -1,0 +1,183 @@
+// # Compute Edit Script - Myers Algorithm Orchestration
+//
+// Logline: Computes the edit script that turns one line stream into the other.
+//
+// Setup: Pure: no FS, net, or env, so a script can be asserted by hand.
+//
+// Beats:
+//   1. Strip common prefix and suffix in linear time.
+//   2. Compute bounded Myers edit script over the diverging middle segment.
+//   3. Assemble whole aligned EditScript with exact line numbering.
+
+import "edit_op.oo";
+import "common_trim.oo";
+import "myers_lcs.oo";
+import "normalize_line.oo";
+
+fn check_has_diff(
+    items: List[EditItem],
+    has_nl_a: Bool,
+    has_nl_b: Bool,
+    bblank: Bool,
+    icase: Bool,
+    ispace: Bool,
+    bspace: Bool
+) -> Bool {
+    let n: Int = list_len(items);
+    if !bblank {
+        if has_nl_a != has_nl_b { return true; }
+        let mut i: Int = 0;
+        while i < n {
+            let it: EditItem = list_get(items, i);
+            if it.op != op_equal() { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    let mut i: Int = 0;
+    while i < n {
+        let it: EditItem = list_get(items, i);
+        if it.op != op_equal() {
+            let norm: String = normalize_line(it.text, icase, ispace, bspace);
+            if chars_len(norm) > 0 { return true; }
+        }
+        i = i + 1;
+    }
+    if has_nl_a != has_nl_b && n > 0 {
+        let last_it: EditItem = list_get(items, n - 1);
+        let norm: String = normalize_line(last_it.text, icase, ispace, bspace);
+        if chars_len(norm) > 0 { return true; }
+    }
+    return false;
+}
+
+pub fn match_compute_script(
+    a: List[String],
+    b: List[String],
+    has_nl_a: Bool,
+    has_nl_b: Bool,
+    icase: Bool,
+    ispace: Bool,
+    bspace: Bool,
+    bblank: Bool
+) -> EditScript {
+    let na: Int = list_len(a);
+    let nb: Int = list_len(b);
+
+    if na == 0 && nb == 0 {
+        return EditScript { items: list_new(), has_diff: false, a_count: 0, b_count: 0 };
+    }
+
+    let mut norm_a: List[String] = list_new();
+    let mut hashes_a: List[Int] = list_new();
+    let mut ai: Int = 0;
+    while ai < na {
+        let na_str: String = normalize_line(list_get(a, ai), icase, ispace, bspace);
+        norm_a = list_push(norm_a, na_str);
+        hashes_a = list_push(hashes_a, hash_line(na_str));
+        ai = ai + 1;
+    }
+
+    let mut norm_b: List[String] = list_new();
+    let mut hashes_b: List[Int] = list_new();
+    let mut bi: Int = 0;
+    while bi < nb {
+        let nb_str: String = normalize_line(list_get(b, bi), icase, ispace, bspace);
+        norm_b = list_push(norm_b, nb_str);
+        hashes_b = list_push(hashes_b, hash_line(nb_str));
+        bi = bi + 1;
+    }
+
+    let bounds: TrimBounds = compute_trim_bounds(a, b, norm_a, norm_b, hashes_a, hashes_b, has_nl_a, has_nl_b);
+    let p: Int = bounds.prefix_len;
+    let s: Int = bounds.suffix_len;
+
+    let mut full_items: List[EditItem] = list_new();
+
+    let mut pi: Int = 0;
+    while pi < p {
+        let it_pre: EditItem = EditItem {
+            op: op_equal(),
+            text: list_get(a, pi),
+            line_a: pi + 1,
+            line_b: pi + 1
+        };
+        full_items = list_push(full_items, it_pre);
+        pi = pi + 1;
+    }
+
+    let mid_a_len: Int = na - p - s;
+    let mid_b_len: Int = nb - p - s;
+    if mid_a_len > 0 || mid_b_len > 0 {
+        let mut mid_a: List[String] = list_new();
+        let mut mid_norm_a: List[String] = list_new();
+        let mut mid_hashes_a: List[Int] = list_new();
+        let mut ma_i: Int = 0;
+        while ma_i < mid_a_len {
+            mid_a = list_push(mid_a, list_get(a, p + ma_i));
+            mid_norm_a = list_push(mid_norm_a, list_get(norm_a, p + ma_i));
+            mid_hashes_a = list_push(mid_hashes_a, list_get(hashes_a, p + ma_i));
+            ma_i = ma_i + 1;
+        }
+
+        let mut mid_b: List[String] = list_new();
+        let mut mid_norm_b: List[String] = list_new();
+        let mut mid_hashes_b: List[Int] = list_new();
+        let mut mb_i: Int = 0;
+        while mb_i < mid_b_len {
+            mid_b = list_push(mid_b, list_get(b, p + mb_i));
+            mid_norm_b = list_push(mid_norm_b, list_get(norm_b, p + mb_i));
+            mid_hashes_b = list_push(mid_hashes_b, list_get(hashes_b, p + mb_i));
+            mb_i = mb_i + 1;
+        }
+
+        if mid_a_len == 1 && mid_b_len == 1 && list_get(mid_norm_a, 0) == list_get(mid_norm_b, 0) && has_nl_a != has_nl_b {
+            let it_del: EditItem = EditItem {
+                op: op_delete(),
+                text: list_get(mid_a, 0),
+                line_a: p + 1,
+                line_b: 0
+            };
+            let it_ins: EditItem = EditItem {
+                op: op_insert(),
+                text: list_get(mid_b, 0),
+                line_a: 0,
+                line_b: p + 1
+            };
+            full_items = list_push(full_items, it_del);
+            full_items = list_push(full_items, it_ins);
+        } else {
+            let mid_items: List[EditItem] = solve_myers(mid_a, mid_b, mid_norm_a, mid_norm_b, mid_hashes_a, mid_hashes_b, p, p);
+            let n_mid: Int = list_len(mid_items);
+            let mut mi: Int = 0;
+            while mi < n_mid {
+                full_items = list_push(full_items, list_get(mid_items, mi));
+                mi = mi + 1;
+            }
+        }
+    }
+
+    let mut si: Int = 0;
+    while si < s {
+        let line_num_a: Int = na - s + si + 1;
+        let line_num_b: Int = nb - s + si + 1;
+        let it_suf: EditItem = EditItem {
+            op: op_equal(),
+            text: list_get(a, na - s + si),
+            line_a: line_num_a,
+            line_b: line_num_b
+        };
+        full_items = list_push(full_items, it_suf);
+        si = si + 1;
+    }
+
+    let diff_detected: Bool = check_has_diff(full_items, has_nl_a, has_nl_b, bblank, icase, ispace, bspace);
+
+    return EditScript {
+        items: full_items,
+        has_diff: diff_detected,
+        a_count: na,
+        b_count: nb
+    };
+}

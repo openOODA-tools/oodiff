@@ -1,0 +1,101 @@
+// # Render Pair - Diff Formatting Over Edit Script
+//
+// Logline: Formats an edit script as unified, normal, brief, or binary diff text.
+//
+// Setup: Pure string formatting over edit scripts and file telemetry.
+//
+// Beats:
+//   1. Build contiguous hunks from an EditScript.
+//   2. Render unified diffs with exact coordinate headers and trailing newline handling.
+//   3. Render directory notices and brief difference summaries.
+
+import "match/edit_op.oo";
+import "hunk_builder.oo";
+import "render_unified.oo";
+import "render_normal.oo";
+
+pub fn render_diff_pair(
+    script: EditScript,
+    label_a: String,
+    label_b: String,
+    total_a: Int,
+    total_b: Int,
+    has_nl_a: Bool,
+    has_nl_b: Bool,
+    is_bin_a: Bool,
+    is_bin_b: Bool,
+    format_mode: Int,
+    context: Int,
+    brief: Bool,
+    report_identical: Bool,
+    use_color: Bool,
+    bblank: Bool,
+    icase: Bool,
+    ispace: Bool,
+    bspace: Bool
+) -> String {
+    if is_bin_a || is_bin_b {
+        if script.has_diff {
+            return "Binary files " + label_a + " and " + label_b + " differ\n";
+        }
+        if report_identical {
+            return "Files " + label_a + " and " + label_b + " are identical\n";
+        }
+        return "";
+    }
+    if brief {
+        if script.has_diff {
+            return "Files " + label_a + " and " + label_b + " differ\n";
+        }
+        if report_identical {
+            return "Files " + label_a + " and " + label_b + " are identical\n";
+        }
+        return "";
+    }
+    if !script.has_diff {
+        if report_identical {
+            return "Files " + label_a + " and " + label_b + " are identical\n";
+        }
+        return "";
+    }
+    if format_mode == 1 {
+        let hunks: List[Hunk] = build_hunks(script.items, context, bblank, icase, ispace, bspace);
+        if list_len(hunks) == 0 {
+            if report_identical {
+                return "Files " + label_a + " and " + label_b + " are identical\n";
+            }
+            return "";
+        }
+        return render_unified_diff(
+            hunks,
+            label_a,
+            label_b,
+            total_a,
+            total_b,
+            has_nl_a,
+            has_nl_b,
+            use_color
+        );
+    }
+
+    let out: String = render_normal_diff(
+        script.items,
+        total_a,
+        total_b,
+        has_nl_a,
+        has_nl_b,
+        use_color,
+        bblank,
+        icase,
+        ispace,
+        bspace
+    );
+    if chars_len(out) == 0 && report_identical {
+        return "Files " + label_a + " and " + label_b + " are identical\n";
+    }
+    return out;
+}
+
+pub fn render_only_in(dir: String, name: String) -> String {
+    return "Only in " + dir + ": " + name + "\n";
+}
