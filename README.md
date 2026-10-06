@@ -23,8 +23,8 @@ Installs the standalone native binary to `/usr/local/bin` (or `~/.local/bin`) wi
 curl -fsSL https://openooda-tools.github.io/oodiff/install.sh | bash
 ```
 
-### Native Packages (APT & DNF)
-Prebuilt packages are attached to every [GitHub Release](https://github.com/openOODA-tools/oodiff/releases):
+### Native Packages (APT, DNF, & PKGBUILD)
+Prebuilt packages and manifests are attached to every [GitHub Release](https://github.com/openOODA-tools/oodiff/releases):
 
 ```bash
 # Debian, Ubuntu (APT)
@@ -32,6 +32,11 @@ sudo apt install ./oodiff_0.3.0-1_amd64.deb
 
 # Fedora, RHEL, Rocky, Alma (DNF)
 sudo dnf install ./oodiff-0.3.0-1.*.rpm
+
+# Arch Linux (PKGBUILD / makepkg)
+curl -fsSL https://openooda-tools.github.io/oodiff/install.sh | bash -s -- --pkgbuild
+# or build manually with makepkg:
+cd packaging/arch && makepkg -si
 ```
 
 Or install with package manager auto-detection via the universal installer:

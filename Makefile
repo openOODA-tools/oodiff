@@ -213,7 +213,12 @@ package-rpm: $(BIN)
 	@cp ~/rpmbuild/RPMS/x86_64/oodiff-$(VERSION)*.rpm dist/
 	@echo "built dist RPM package"
 
-package: package-deb package-rpm
+package-arch:
+	@bash -n packaging/arch/PKGBUILD
+	@cp packaging/arch/PKGBUILD packaging/PKGBUILD
+	@echo "validated packaging/arch/PKGBUILD and packaging/PKGBUILD"
+
+package: package-deb package-rpm package-arch
 
 clean:
 	@rm -rf dist .ooda-cache
