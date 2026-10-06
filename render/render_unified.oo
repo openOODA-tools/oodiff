@@ -31,7 +31,8 @@ pub fn render_unified_diff(
     total_b: Int,
     has_nl_a: Bool,
     has_nl_b: Bool,
-    use_color: Bool
+    use_color: Bool,
+    theme: String
 ) -> String {
     let n_hunks: Int = list_len(hunks);
     if n_hunks == 0 {
@@ -48,7 +49,7 @@ pub fn render_unified_diff(
     while hi < n_hunks {
         let h: Hunk = list_get(hunks, hi);
         let coord: String = "@@ " + format_coord("-", h.start_a, h.count_a) + " " + format_coord("+", h.start_b, h.count_b) + " @@\n";
-        out = out + color_cyan(coord, use_color);
+        out = out + color_cyan(coord, theme, use_color);
 
         let n_items: Int = list_len(h.items);
         let mut ii: Int = 0;
@@ -61,13 +62,13 @@ pub fn render_unified_diff(
                 }
             } else if it.op == op_delete() {
                 let del_line: String = "-" + it.text + "\n";
-                out = out + color_red(del_line, use_color);
+                out = out + color_red(del_line, theme, use_color);
                 if it.line_a == total_a && !has_nl_a {
                     out = out + "\\ No newline at end of file\n";
                 }
             } else if it.op == op_insert() {
                 let ins_line: String = "+" + it.text + "\n";
-                out = out + color_green(ins_line, use_color);
+                out = out + color_green(ins_line, theme, use_color);
                 if it.line_b == total_b && !has_nl_b {
                     out = out + "\\ No newline at end of file\n";
                 }

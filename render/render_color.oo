@@ -10,44 +10,46 @@
 //   3. Wrap bold text segments safely with reset codes.
 //   4. Pass through unchanged text when color is disabled.
 
+import "render_theme.oo";
+
 pub fn color_bold(text: String, enabled: Bool) -> String {
     if !enabled { return text; }
     let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
     return esc + "[1m" + text + esc + "[0m";
 }
 
-pub fn color_diff_added(text: String, enabled: Bool) -> String {
+pub fn color_diff_added(text: String, theme: String, enabled: Bool) -> String {
     if !enabled { return text; }
     let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
-    return esc + "[32m" + text + esc + "[0m";
+    return esc + "[" + diff_token_added(theme) + "m" + text + esc + "[0m";
 }
 
-pub fn color_diff_removed(text: String, enabled: Bool) -> String {
+pub fn color_diff_removed(text: String, theme: String, enabled: Bool) -> String {
     if !enabled { return text; }
     let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
-    return esc + "[31m" + text + esc + "[0m";
+    return esc + "[" + diff_token_removed(theme) + "m" + text + esc + "[0m";
 }
 
-pub fn color_diff_header(text: String, enabled: Bool) -> String {
+pub fn color_diff_header(text: String, theme: String, enabled: Bool) -> String {
     if !enabled { return text; }
     let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
-    return esc + "[36m" + text + esc + "[0m";
+    return esc + "[" + diff_token_header(theme) + "m" + text + esc + "[0m";
 }
 
-pub fn color_diff_context(text: String, enabled: Bool) -> String {
+pub fn color_diff_context(text: String, theme: String, enabled: Bool) -> String {
     if !enabled { return text; }
     let esc: String = bytes_to_str(bytes_push(bytes_new(), 27));
-    return esc + "[90m" + text + esc + "[0m";
+    return esc + "[" + diff_token_context(theme) + "m" + text + esc + "[0m";
 }
 
-pub fn color_red(text: String, enabled: Bool) -> String {
-    return color_diff_removed(text, enabled);
+pub fn color_red(text: String, theme: String, enabled: Bool) -> String {
+    return color_diff_removed(text, theme, enabled);
 }
 
-pub fn color_green(text: String, enabled: Bool) -> String {
-    return color_diff_added(text, enabled);
+pub fn color_green(text: String, theme: String, enabled: Bool) -> String {
+    return color_diff_added(text, theme, enabled);
 }
 
-pub fn color_cyan(text: String, enabled: Bool) -> String {
-    return color_diff_header(text, enabled);
+pub fn color_cyan(text: String, theme: String, enabled: Bool) -> String {
+    return color_diff_header(text, theme, enabled);
 }

@@ -46,6 +46,7 @@ pub fn render_normal_diff(
     has_nl_a: Bool,
     has_nl_b: Bool,
     use_color: Bool,
+    theme: String,
     bblank: Bool,
     icase: Bool,
     ispace: Bool,
@@ -90,12 +91,12 @@ pub fn render_normal_diff(
                     let a_end: Int = list_get(del_items, nd - 1).line_a;
                     let a_part: String = if a_start == a_end { to_string(a_start) } else { to_string(a_start) + "," + to_string(a_end) };
                     let hdr: String = a_part + "d" + to_string(b_coord) + "\n";
-                    out = out + color_cyan(hdr, use_color);
+                    out = out + color_cyan(hdr, theme, use_color);
                     let mut di: Int = 0;
                     while di < nd {
                         let dit: EditItem = list_get(del_items, di);
                         let lstr: String = "< " + dit.text + "\n";
-                        out = out + color_red(lstr, use_color);
+                        out = out + color_red(lstr, theme, use_color);
                         if dit.line_a == total_a && !has_nl_a {
                             out = out + "\\ No newline at end of file\n";
                         }
@@ -106,12 +107,12 @@ pub fn render_normal_diff(
                     let b_end: Int = list_get(add_items, na - 1).line_b;
                     let b_part: String = if b_start == b_end { to_string(b_start) } else { to_string(b_start) + "," + to_string(b_end) };
                     let hdr: String = to_string(a_coord) + "a" + b_part + "\n";
-                    out = out + color_cyan(hdr, use_color);
+                    out = out + color_cyan(hdr, theme, use_color);
                     let mut ai: Int = 0;
                     while ai < na {
                         let ait: EditItem = list_get(add_items, ai);
                         let lstr: String = "> " + ait.text + "\n";
-                        out = out + color_green(lstr, use_color);
+                        out = out + color_green(lstr, theme, use_color);
                         if ait.line_b == total_b && !has_nl_b {
                             out = out + "\\ No newline at end of file\n";
                         }
@@ -125,12 +126,12 @@ pub fn render_normal_diff(
                     let b_end: Int = list_get(add_items, na - 1).line_b;
                     let b_part: String = if b_start == b_end { to_string(b_start) } else { to_string(b_start) + "," + to_string(b_end) };
                     let hdr: String = a_part + "c" + b_part + "\n";
-                    out = out + color_cyan(hdr, use_color);
+                    out = out + color_cyan(hdr, theme, use_color);
                     let mut di: Int = 0;
                     while di < nd {
                         let dit: EditItem = list_get(del_items, di);
                         let lstr: String = "< " + dit.text + "\n";
-                        out = out + color_red(lstr, use_color);
+                        out = out + color_red(lstr, theme, use_color);
                         if dit.line_a == total_a && !has_nl_a {
                             out = out + "\\ No newline at end of file\n";
                         }
@@ -141,7 +142,7 @@ pub fn render_normal_diff(
                     while ai < na {
                         let ait: EditItem = list_get(add_items, ai);
                         let lstr: String = "> " + ait.text + "\n";
-                        out = out + color_green(lstr, use_color);
+                        out = out + color_green(lstr, theme, use_color);
                         if ait.line_b == total_b && !has_nl_b {
                             out = out + "\\ No newline at end of file\n";
                         }

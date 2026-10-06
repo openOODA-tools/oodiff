@@ -29,6 +29,7 @@ pub fn render_diff_pair(
     brief: Bool,
     report_identical: Bool,
     use_color: Bool,
+    theme: String,
     bblank: Bool,
     icase: Bool,
     ispace: Bool,
@@ -74,7 +75,8 @@ pub fn render_diff_pair(
             total_b,
             has_nl_a,
             has_nl_b,
-            use_color
+            use_color,
+            theme
         );
     }
 
@@ -85,6 +87,7 @@ pub fn render_diff_pair(
         has_nl_a,
         has_nl_b,
         use_color,
+        theme,
         bblank,
         icase,
         ispace,

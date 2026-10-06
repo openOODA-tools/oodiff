@@ -10,6 +10,8 @@
 //   3. Map diff semantic tokens to ANSI color codes per theme.
 //   4. Resolve default configuration path under openOODA home directory.
 
+import "std/fs/process/env.oo";
+
 pub fn parse_theme_val(line: String, key: String) -> String {
     let trimmed: String = str_trim(line);
     if !str_starts_with(trimmed, key) { return ""; }
@@ -54,8 +56,14 @@ pub fn diff_token_removed(theme: String) -> String {
 }
 
 pub fn diff_token_header(theme: String) -> String {
-    if theme == "1982" || theme == "cyberpunk" {
+    if theme == "1982" || theme == "cyberpunk" || theme == "frost" || theme == "nord" {
         return "36";
+    }
+    if theme == "amethyst" || theme == "dracula" {
+        return "35";
+    }
+    if theme == "solitude" {
+        return "34";
     }
     return "33";
 }
@@ -70,4 +78,24 @@ pub fn theme_config_path(home: String) -> String {
         return home + ".openooda/theme.oot";
     }
     return home + "/.openooda/theme.oot";
+}
+
+pub fn resolve_diff_theme(fs: &FsReadCap, env: &EnvCap) -> String {
+    let env_t: Result[String, String] = env_get(env, "OODA_THEME");
+    if env_t.is_ok() {
+        let t: String = match env_t { Ok(s) => s, Err(_) => "" };
+        if t != "" { return t; }
+    }
+    let env_home: Result[String, String] = env_get(env, "OODA_HOME");
+    let mut home: String = match env_home { Ok(s) => s, Err(_) => "" };
+    if home == "" {
+        let env_w: Result[String, String] = env_get(env, "OODA_FS_WRITEDIR");
+        home = match env_w { Ok(s) => s, Err(_) => "" };
+    }
+    let p: String = theme_config_path(home);
+    let r: Result[String, String] = read_file(fs, p);
+    if r.is_err() { return "auto"; }
+    let content: String = match r { Ok(s) => s, Err(_) => "" };
+    let t: String = parse_theme_key(content, "theme");
+    return if t != "" { t } else { "auto" };
 }

@@ -14,6 +14,7 @@ import "walk/walk_operands.oo";
 import "match/edit_op.oo";
 import "match/compute_script.oo";
 import "render/render_pair.oo";
+import "render/render_theme.oo";
 import "ipc/diff_opts.oo";
 import "ipc/mcp_serve.oo";
 
@@ -35,7 +36,7 @@ fn build_rec_hdr(opts: DiffOpts, pa: String, pb: String) -> String {
     return s + " " + pa + " " + pb + "\n";
 }
 
-pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result[Int, String] {
+pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, env: &EnvCap, args: List[String]) -> Result[Int, String] {
     let opts: DiffOpts = parse_diff_args(args);
 
     if opts.help_mode {
@@ -64,6 +65,7 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
     let n_pairs: Int = list_len(pairs);
     let mut any_diff: Bool = false;
 
+    let theme: String = resolve_diff_theme(fs, env);
     let mut i: Int = 0;
     while i < n_pairs {
         let p: FilePair = list_get(pairs, i);
@@ -119,6 +121,7 @@ pub fn main(fs: &FsReadCap, proc_cap: &ProcessCap, args: List[String]) -> Result
                 opts.brief,
                 opts.report_identical,
                 opts.use_color,
+                theme,
                 opts.ignore_blank_lines,
                 opts.ignore_case,
                 opts.ignore_all_space,

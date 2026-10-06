@@ -41,7 +41,7 @@ fn handle_tool_call(fs: &FsReadCap, id: String, req: String) -> String {
         if fa.missing { return build_error(id, -32602, pa + ": " + fa.error_msg); }
         if fb.missing { return build_error(id, -32602, pb + ": " + fb.error_msg); }
         let script: EditScript = match_compute_script(fa.lines, fb.lines, fa.has_trailing_newline, fb.has_trailing_newline, false, false, false, false);
-        let text: String = render_diff_pair(script, pa, pb, list_len(fa.lines), list_len(fb.lines), fa.has_trailing_newline, fb.has_trailing_newline, fa.is_binary, fb.is_binary, 1, 3, false, false, false, false, false, false, false);
+        let text: String = render_diff_pair(script, pa, pb, list_len(fa.lines), list_len(fb.lines), fa.has_trailing_newline, fb.has_trailing_newline, fa.is_binary, fb.is_binary, 1, 3, false, false, false, "auto", false, false, false, false);
         return build_tool_result(id, text);
     }
 
@@ -63,7 +63,7 @@ fn handle_tool_call(fs: &FsReadCap, id: String, req: String) -> String {
                 full_diff = full_diff + render_only_in(db, p.rel_path);
             } else {
                 let script: EditScript = match_compute_script(p.file_a.lines, p.file_b.lines, p.file_a.has_trailing_newline, p.file_b.has_trailing_newline, false, false, false, false);
-                full_diff = full_diff + render_diff_pair(script, p.label_a, p.label_b, list_len(p.file_a.lines), list_len(p.file_b.lines), p.file_a.has_trailing_newline, p.file_b.has_trailing_newline, p.file_a.is_binary, p.file_b.is_binary, 1, 3, false, false, false, false, false, false, false);
+                full_diff = full_diff + render_diff_pair(script, p.label_a, p.label_b, list_len(p.file_a.lines), list_len(p.file_b.lines), p.file_a.has_trailing_newline, p.file_b.has_trailing_newline, p.file_a.is_binary, p.file_b.is_binary, 1, 3, false, false, false, "auto", false, false, false, false);
             }
             i = i + 1;
         }
