@@ -53,7 +53,7 @@ jobs:
           make test
           make parity
 
-      - name: Verify packaging (.deb, .rpm, PKGBUILD)
+      - name: Verify packaging (.deb, .rpm, PKGBUILD) and clean uninstaller
         working-directory: ${{ github.workspace }}/oodiff
         run: |
           sudo apt-get install -y -qq rpm
@@ -65,3 +65,10 @@ jobs:
           /usr/bin/oodiff --version
           /usr/bin/oodiff qa/fixtures/test_a.txt qa/fixtures/test_a.txt
           /usr/bin/oodiff qa/fixtures/test_a.txt qa/fixtures/test_b.txt >/dev/null 2>&1 || test $? -eq 1
+          /usr/bin/oodiff-uninstall --help
+          /usr/bin/oodiff-uninstall --dry-run
+          sudo /usr/bin/oodiff-uninstall -y --purge
+          test ! -f /usr/bin/oodiff
+          test ! -f /usr/bin/oodiff-uninstall
+          ./install.sh --dry-run
+          ./install.sh --uninstall --dry-run

@@ -18,9 +18,12 @@ OODACODEX ?= $(HOME)/.openooda/northstar.oot
 OO_LIST_AMBIENT_QUOTA ?= 8589934592
 BIN := dist/oodiff
 
+PREFIX ?= /usr/local
+BINDIR ?= $(PREFIX)/bin
+
 SRC := $(wildcard *.oo) $(wildcard */*.oo)
 
-.PHONY: build check line-cap file-law academy density verify clean
+.PHONY: build check line-cap file-law academy density verify clean test parity package package-deb package-rpm package-arch install uninstall
 
 build: $(BIN)
 
@@ -196,11 +199,24 @@ parity: $(BIN)
 
 VERSION ?= 0.3.0
 
+install: $(BIN)
+	@mkdir -p $(DESTDIR)$(BINDIR)
+	install -m 0755 $(BIN) $(DESTDIR)$(BINDIR)/oodiff
+	install -m 0755 uninstall.sh $(DESTDIR)$(BINDIR)/oodiff-uninstall
+	@echo "installed oodiff and oodiff-uninstall to $(DESTDIR)$(BINDIR)"
+
+uninstall:
+	@rm -f $(DESTDIR)$(BINDIR)/oodiff $(DESTDIR)$(BINDIR)/oodiff-uninstall
+	@if [ "$(PURGE)" = "1" ]; then rm -rf $(HOME)/.cache/oodiff $(HOME)/.config/oodiff; echo "purged user cache and config"; fi
+	@echo "uninstalled oodiff and oodiff-uninstall from $(DESTDIR)$(BINDIR)"
+
 package-deb: $(BIN)
 	@mkdir -p dist/deb-root/DEBIAN dist/deb-root/usr/bin
 	@sed "s/^Version:.*/Version: $(VERSION)-1/" packaging/debian/control.binary > dist/deb-root/DEBIAN/control
 	@cp $(BIN) dist/deb-root/usr/bin/oodiff
 	@chmod 0755 dist/deb-root/usr/bin/oodiff
+	@cp uninstall.sh dist/deb-root/usr/bin/oodiff-uninstall
+	@chmod 0755 dist/deb-root/usr/bin/oodiff-uninstall
 	@dpkg-deb --build --root-owner-group dist/deb-root dist/oodiff_$(VERSION)-1_amd64.deb
 	@rm -rf dist/deb-root
 	@echo "built dist/oodiff_$(VERSION)-1_amd64.deb"
@@ -208,6 +224,7 @@ package-deb: $(BIN)
 package-rpm: $(BIN)
 	@mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS ~/rpmbuild/RPMS
 	@cp $(BIN) ~/rpmbuild/SOURCES/oodiff-linux-x86_64
+	@cp uninstall.sh ~/rpmbuild/SOURCES/uninstall.sh
 	@sed "s/^Version:.*/Version: $(VERSION)/" packaging/oodiff.spec > ~/rpmbuild/SPECS/oodiff.spec
 	@rpmbuild -bb ~/rpmbuild/SPECS/oodiff.spec
 	@cp ~/rpmbuild/RPMS/x86_64/oodiff-$(VERSION)*.rpm dist/

@@ -54,6 +54,28 @@ make verify
 make build
 make test
 make parity
+sudo make install
+```
+
+### Clean Uninstallation
+`oodiff` includes a clean uninstaller that thoroughly relinquishes binaries, companion scripts, and package manager registrations (`apt`, `dnf`, `pacman`) without leaving orphan files:
+
+```bash
+# 1. Via companion CLI command (situated automatically alongside oodiff):
+oodiff-uninstall
+
+# Purge binaries, configs, and user caches (~/.cache/oodiff):
+oodiff-uninstall --purge
+
+# 2. Standalone web uninstaller (zero dependencies):
+curl -fsSL https://openooda-tools.github.io/oodiff/uninstall.sh | bash
+
+# 3. Via installer flag:
+curl -fsSL https://openooda-tools.github.io/oodiff/install.sh | bash -s -- --uninstall
+
+# 4. From source repository:
+sudo make uninstall
+sudo make uninstall PURGE=1
 ```
 
 ---
