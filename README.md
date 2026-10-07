@@ -28,10 +28,10 @@ Prebuilt packages and manifests are attached to every [GitHub Release](https://g
 
 ```bash
 # Debian, Ubuntu (APT)
-sudo apt install ./oodiff_0.3.0-1_amd64.deb
+sudo apt install ./oodiff_0.3.1-1_amd64.deb
 
 # Fedora, RHEL, Rocky, Alma (DNF)
-sudo dnf install ./oodiff-0.3.0-1.*.rpm
+sudo dnf install ./oodiff-0.3.1-1.*.rpm
 
 # Arch Linux (PKGBUILD / makepkg)
 curl -fsSL https://openooda-tools.github.io/oodiff/install.sh | bash -s -- --pkgbuild

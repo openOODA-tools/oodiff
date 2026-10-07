@@ -230,10 +230,18 @@ package-rpm: $(BIN)
 	@cp ~/rpmbuild/RPMS/x86_64/oodiff-$(VERSION)*.rpm dist/
 	@echo "built dist RPM package"
 
-package-arch:
+package-arch: $(BIN)
+	@mkdir -p dist/arch-pkg/usr/bin
+	@cp $(BIN) dist/arch-pkg/usr/bin/oodiff
+	@chmod 0755 dist/arch-pkg/usr/bin/oodiff
+	@cp uninstall.sh dist/arch-pkg/usr/bin/oodiff-uninstall
+	@chmod 0755 dist/arch-pkg/usr/bin/oodiff-uninstall
+	@printf "pkgname = oodiff\npkgbase = oodiff\npkgver = $(VERSION)-1\npkgdesc = Capability-bounded file and directory diff engine with GNU diff parity and MCP surface\nurl = https://github.com/openOODA-tools/oodiff\nbuilddate = $$(date +%s)\npackager = openOODA-tools <ops@openooda.org>\nsize = $$(stat -c %s $(BIN))\narch = x86_64\nlicense = Apache-2.0\ndepend = glibc\nprovides = oodiff\n" > dist/arch-pkg/.PKGINFO
+	@tar --zstd -cf dist/oodiff-$(VERSION)-1-x86_64.pkg.tar.zst -C dist/arch-pkg .PKGINFO usr
+	@rm -rf dist/arch-pkg
 	@bash -n packaging/arch/PKGBUILD
 	@cp packaging/arch/PKGBUILD packaging/PKGBUILD
-	@echo "validated packaging/arch/PKGBUILD and packaging/PKGBUILD"
+	@echo "built dist/oodiff-$(VERSION)-1-x86_64.pkg.tar.zst and validated PKGBUILD"
 
 package: package-deb package-rpm package-arch
 
