@@ -1,7 +1,7 @@
 # Maintainer: openOODA-tools <ops@openooda.org>
 pkgname=oodiff-bin
 _pkgname=oodiff
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc="Capability-bounded file and directory diff engine with GNU diff parity and MCP surface"
 arch=('x86_64')

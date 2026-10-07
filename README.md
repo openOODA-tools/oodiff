@@ -4,7 +4,7 @@
 > *A drop-in `diff` replacement written in pure openOODA, featuring byte-for-byte GNU diff parity, negative-trust capability security, and an agent-native MCP surface.*
 
 [![CI](https://github.com/openOODA-tools/oodiff/actions/workflows/ci.yml/badge.svg)](https://github.com/openOODA-tools/oodiff/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-v0.3.0-blue.svg)](https://github.com/openOODA-tools/oodiff/releases/tag/v0.3.0)
+[![Version](https://img.shields.io/badge/version-v0.3.1-blue.svg)](https://github.com/openOODA-tools/oodiff/releases/tag/v0.3.1)
 [![openOODA](https://img.shields.io/badge/language-100%25%20openOODA-green.svg)](https://openooda.org)
 [![Parity](https://img.shields.io/badge/GNU%20diff-byte--for--byte%20parity-brightgreen.svg)](https://openooda-tools.github.io/oodiff/)
 
